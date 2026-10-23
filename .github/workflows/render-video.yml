@@ -1,0 +1,36 @@
+name: render-video
+
+on:
+  workflow_dispatch:
+    inputs:
+      draft_id:
+        description: "Draft to render (blank = all pending)"
+        required: false
+  schedule:
+    - cron: "*/15 * * * *"   # backup sweep in case a dispatch was missed
+
+concurrency:
+  group: render-video
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - run: npm ci
+      - run: npx tsx worker/render-video.ts ${{ github.event.inputs.draft_id }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_MEDIA_BUCKET: media
+          BRAND_NAME: ${{ vars.BRAND_NAME }}
+          BRAND_HANDLE: ${{ vars.BRAND_HANDLE }}
+          GOOGLE_TTS_API_KEY: ${{ secrets.GOOGLE_TTS_API_KEY }}
+          GOOGLE_TTS_VOICE: ${{ vars.GOOGLE_TTS_VOICE }}

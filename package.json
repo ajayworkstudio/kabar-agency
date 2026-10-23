@@ -1,0 +1,38 @@
+{
+  "name": "kabar-agency",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "render:worker": "tsx worker/render-video.ts",
+    "pipeline:once": "tsx --env-file=.env.local scripts/run-pipeline.ts",
+    "sample:card": "tsx scripts/sample-card.ts",
+    "sample:video": "tsx scripts/sample-video.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.2.0",
+    "@mozilla/readability": "^0.6.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "@supabase/supabase-js": "^2.118.0",
+    "linkedom": "^0.18.14",
+    "next": "^15.5.28",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "rss-parser": "^3.13.0",
+    "satori": "^0.63.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  },
+  "private": true,
+  "type": "module"
+}

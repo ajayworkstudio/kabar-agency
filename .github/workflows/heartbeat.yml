@@ -1,0 +1,27 @@
+# Free alternative to Vercel Cron: on Vercel's Hobby plan cron jobs can only run once a day,
+# so this workflow calls the pipeline endpoints on a schedule instead.
+# Delete it if you're on Vercel Pro (vercel.json crons cover everything).
+name: heartbeat
+
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: collect → generate → publish
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          hit() { curl -fsS -m 290 -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/$1" || echo "  ($1 failed)"; echo; }
+          hit collect
+          hit generate
+          hit publish
+          # every 3rd hour: metrics; once a day at 02:xx UTC: token refresh
+          [ $(( $(date -u +%H) % 3 )) -eq 0 ] && [ $(date -u +%M) -lt 20 ] && hit metrics
+          [ $(date -u +%H) -eq 2 ] && [ $(date -u +%M) -lt 20 ] && hit refresh-tokens
+          true
