@@ -1,3 +1,4 @@
+import { activeAgents, covers, createTask, wibDayStart, type Agent } from "@/lib/agents";
 import { db, uploadMedia } from "@/lib/db";
 import { env } from "@/lib/env";
 import { notifyDraft } from "@/lib/telegram";
@@ -9,9 +10,29 @@ import { factCheck, writeDraft, type SourceDoc } from "./writer";
 
 type StoryRow = { id: string; headline: string; category: string; outlet_count: number; heat: number; trend_score: number };
 
-/** Turn the hottest confirmed stories into draft packages waiting for approval. */
-export async function generate(opts: { storyId?: string } = {}) {
+/**
+ * Turn the hottest confirmed stories into draft packages waiting for approval.
+ * Each draft is handled by the bot employee whose categories cover the story,
+ * using that bot's thresholds, platforms and daily quota.
+ */
+export async function generate(opts: { storyId?: string; agentId?: string } = {}) {
   const supa = db();
+  const agents = await activeAgents();
+  if (!agents.length) return { summary: "no active bot employees" };
+
+  // drafts each agent already made today (quota)
+  const { data: todays } = await supa.from("drafts").select("agent_id").gte("created_at", wibDayStart());
+  const used = new Map<string, number>();
+  (todays ?? []).forEach((d) => d.agent_id && used.set(d.agent_id as string, (used.get(d.agent_id as string) ?? 0) + 1));
+
+  const pick = (s: StoryRow, force: boolean): Agent | undefined =>
+    agents.find(
+      (a) =>
+        (!opts.agentId || a.id === opts.agentId) &&
+        covers(a, s.category) &&
+        (force || ((used.get(a.id) ?? 0) < a.settings.maxDraftsPerDay &&
+          s.outlet_count >= (s.category === "politik" ? a.settings.minSourcesPolitics : a.settings.minSources)))
+    );
 
   let candidates: StoryRow[];
   if (opts.storyId) {
@@ -25,15 +46,20 @@ export async function generate(opts: { storyId?: string } = {}) {
       .gte("last_seen_at", new Date(Date.now() - 12 * 3600_000).toISOString())
       .order("heat", { ascending: false })
       .limit(25);
-    candidates = ((data ?? []) as StoryRow[]).filter((s) => s.outlet_count >= (s.category === "politik" ? env.minSourcesPolitics : env.minSources));
+    candidates = (data ?? []) as StoryRow[];
   }
+  const work = candidates
+    .map((s) => ({ s, agent: pick(s, !!opts.storyId) ?? (opts.storyId ? agents[0] : undefined) }))
+    .filter((x): x is { s: StoryRow; agent: Agent } => !!x.agent)
+    .slice(0, env.maxDraftsPerRun);
 
   const made: string[] = [];
   const errors: string[] = [];
-  for (const s of candidates.slice(0, env.maxDraftsPerRun)) {
+  for (const { s, agent } of work) {
     // claim the story so a parallel run can't draft it twice
     const { data: claimed } = await supa.from("stories").update({ status: "drafted" }).eq("id", s.id).in("status", ["confirmed", "developing"]).select("id");
     if (!claimed?.length && !opts.storyId) continue;
+    used.set(agent.id, (used.get(agent.id) ?? 0) + 1);
 
     try {
       const { data: arts } = await supa
@@ -61,7 +87,7 @@ export async function generate(opts: { storyId?: string } = {}) {
 
       const { data: draft, error } = await supa
         .from("drafts")
-        .insert({ story_id: s.id, hook: content.hook, content, fact_check: check, status: "pending" })
+        .insert({ story_id: s.id, agent_id: agent.id, targets: agent.platforms, hook: content.hook, content, fact_check: check, status: "pending" })
         .select("id")
         .single();
       if (error || !draft) throw new Error(error?.message ?? "insert draft failed");
@@ -83,7 +109,19 @@ export async function generate(opts: { storyId?: string } = {}) {
         sensitivity: content.sensitivity,
       });
       if (msgId) await supa.from("drafts").update({ telegram_message_id: msgId }).eq("id", draft.id);
-      made.push(content.hook);
+
+      // the draft becomes a task "in review" for the admin
+      await createTask({
+        agent_id: agent.id,
+        kind: "draft",
+        title: content.hook,
+        description: content.summary,
+        status: "in_review",
+        priority: content.sensitivity === "high" ? 2 : s.trend_score > 0 ? 2 : 3,
+        draft_id: draft.id,
+        payload: { storyId: s.id, outlets: s.outlet_count, category: content.category, factCheck: check.verdict },
+      });
+      made.push(`${agent.name}: ${content.hook}`);
     } catch (e) {
       await supa.from("stories").update({ status: "confirmed" }).eq("id", s.id); // release for a retry next run
       errors.push(`${s.headline.slice(0, 50)}: ${e instanceof Error ? e.message : String(e)}`);

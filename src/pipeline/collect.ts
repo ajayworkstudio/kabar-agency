@@ -48,6 +48,12 @@ export function itemsFromFeed(feed: { items: GItem[] }, src: SourceDef): { items
 
 export const parseFeedString = (xml: string) => parser.parseString(xml);
 
+/** Ad-hoc Google News search, used by research tasks. */
+export async function searchGoogleNews(query: string, days = 2): Promise<RawItem[]> {
+  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(`${query} when:${days}d`)}&hl=id&gl=ID&ceid=ID:id`;
+  return itemsFromFeed(await parser.parseURL(url), { id: "gn-research", outlet: "Google News", url, kind: "google_news" }).items;
+}
+
 async function fetchSource(src: SourceDef) {
   return itemsFromFeed(await parser.parseURL(src.url), src);
 }

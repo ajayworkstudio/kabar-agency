@@ -1,4 +1,29 @@
-# Kabar Agency — trending-news agency bot
+# Agency — tim karyawan bot untuk media sosialmu
+
+**Agency** adalah sistem manajemen agensi konten. Kamu adalah admin; para "karyawan" adalah bot yang masing-masing memegang platform, kategori berita, dan tanggung jawab yang kamu tentukan.
+
+| Halaman | Isi |
+|---|---|
+| `/` | Landing page |
+| `/app` **Ringkasan** | Statistik, chart views harian, per platform, produktivitas karyawan, status tugas |
+| `/app/inbox` **Inbox** | Draft yang menunggu persetujuan + hasil riset — tinjau, edit, setujui, atau tolak |
+| `/app/tasks` **Tugas** | Task manager (daftar & papan), filter per karyawan, buat tugas riset/manual |
+| `/app/agents` **Karyawan** | Rekrut bot baru, atur platform, kategori, tanggung jawab, kuota, jam laporan |
+| `/app/reports` **Laporan harian** | Laporan berita terbaru dari tiap karyawan, setiap pagi |
+| `/app/news` · `/app/published` · `/app/settings` | Berita & kesehatan sumber · konten terbit & metrik · koneksi & jalankan manual |
+
+Karyawan pertama, **Raka (Editor Berita Sosial Media)**, otomatis dibuat oleh `supabase/migrations/002_agency.sql`.
+
+Cara kerja tiap karyawan:
+- **Draft** — setiap berita yang lolos ambang outlet *karyawan itu* dan masuk kategorinya ditulis olehnya, dengan platform default miliknya, sampai kuota hariannya habis. Draft menjadi tugas "Perlu ditinjau" sampai kamu setujui → "Dikerjakan" → "Selesai" saat terbit.
+- **Riset** — buat tugas "Riset topik" (mis. *pantau isu harga beras di Jateng*); dalam ±20 menit bot mencari berita 3 hari terakhir, merangkum, mengusulkan angle konten, dan hasilnya masuk Inbox.
+- **Laporan harian** — tiap hari pada jam laporannya (default 07.00 WIB) bot mengirim ringkasan berita terbaru, trending, dan kinerja konten ke dashboard + Telegram.
+
+Coba tanpa akun apa pun: `DEMO_MODE=true npm run dev` lalu buka `http://localhost:3000`.
+
+---
+
+## Mesin di baliknya
 
 Watches Indonesian news and search trends around the clock, confirms each story across independent outlets, writes a full content package (carousel, captions, Threads post, short-video script and rendered video), and asks you to approve it with one tap on Telegram or in the dashboard. Approved posts go out on Instagram, Threads, TikTok and YouTube Shorts.
 
@@ -46,7 +71,7 @@ Samples of the generated design are in `docs/samples/` (cards + `sample.mp4`).
 ## Setup (≈1 hour, most of it waiting on platform approvals)
 
 ### 1. Supabase
-1. Create a project → **SQL Editor** → paste and run `supabase/migrations/001_init.sql`.
+1. Create a project → **SQL Editor** → run `supabase/migrations/001_init.sql`, then `supabase/migrations/002_agency.sql`.
 2. Copy the project URL and the **service_role** key (Settings → API).
 
 ### 2. Local test
@@ -94,7 +119,7 @@ GitHub's scheduled workflows can run a few minutes late under load. That's fine 
 
 ---
 
-## Daily use
+## Daily use (legacy notes — the dashboard is now the Agency app above)
 
 - **Telegram** pings you with the cover card, hook, how many outlets confirmed it, and the fact-check verdict. Tap **Post sekarang**, **Slot berikutnya**, or **Tolak**.
 - **Dashboard → Antrian**: swipe through every slide, read the fact-check notes and the list of claims → sources, edit any text (cards re-render), choose which platforms get it.
@@ -125,7 +150,7 @@ Install it on your phone: open the dashboard in Chrome/Safari → *Add to Home S
 
 ## Tests
 ```bash
-npm test          # clustering, outlet normalization, WIB scheduling, feed parsing
+npm test          # clustering, outlet normalization, WIB scheduling, feed parsing, every admin page renders
 npm run typecheck
 ```
 

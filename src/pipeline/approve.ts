@@ -1,3 +1,4 @@
+import { syncDraftTask } from "@/lib/agents";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { nextFreeSlot } from "./schedule";
@@ -36,10 +37,12 @@ export async function approveDraft(id: string, mode: "now" | "slot" | Date, targ
     .from("drafts")
     .update({ status, targets: finalTargets, scheduled_for: when.toISOString(), approved_at: new Date().toISOString(), error: null, updated_at: new Date().toISOString() })
     .eq("id", id);
+  await syncDraftTask(id, "in_progress");
   if (needsVideo) await dispatchRender(id);
   return { status, scheduledFor: when };
 }
 
 export async function rejectDraft(id: string) {
   await db().from("drafts").update({ status: "rejected", updated_at: new Date().toISOString() }).eq("id", id).in("status", ["pending", "failed", "scheduled"]);
+  await syncDraftTask(id, "canceled");
 }

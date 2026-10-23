@@ -6,6 +6,7 @@
  *   npx tsx worker/render-video.ts            # all pending
  *   npx tsx worker/render-video.ts <draftId>  # one draft
  */
+import { syncDraftTask } from "../src/lib/agents";
 import { db, uploadMedia } from "../src/lib/db";
 import { env } from "../src/lib/env";
 import type { DraftContent } from "../src/lib/types";
@@ -30,6 +31,7 @@ for (const job of jobs ?? []) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await supa.from("drafts").update({ status: "failed", error: `render: ${msg.slice(0, 400)}` }).eq("id", job.id);
+    await syncDraftTask(job.id, "failed", `render: ${msg.slice(0, 200)}`);
     await supa.from("runs").insert({ job: "render", ok: false, summary: msg.slice(0, 500), duration_ms: Date.now() - t0 });
     console.error(`failed ${job.id}: ${msg}`);
   }

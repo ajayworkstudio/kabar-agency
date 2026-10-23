@@ -13,14 +13,14 @@ const inter = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Newsroom",
-  description: "Trending news → verified drafts → one-tap publishing",
+  title: "Agency",
+  description: "Sistem manajemen agensi: karyawan bot untuk media sosialmu",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Newsroom", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "Agency", statusBarStyle: "black-translucent" },
   icons: { icon: "/icon.svg", apple: "/icon-192.png" },
 };
 
-export const viewport: Viewport = { themeColor: "#0B0F1A", width: "device-width", initialScale: 1, viewportFit: "cover" };
+export const viewport: Viewport = { themeColor: "#08090a", width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

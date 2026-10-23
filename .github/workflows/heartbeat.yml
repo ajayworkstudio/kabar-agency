@@ -12,7 +12,7 @@ jobs:
   tick:
     runs-on: ubuntu-latest
     steps:
-      - name: collect → generate → publish
+      - name: collect → generate → publish → agents
         env:
           APP_URL: ${{ vars.APP_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
@@ -21,6 +21,7 @@ jobs:
           hit collect
           hit generate
           hit publish
+          hit agents
           # every 3rd hour: metrics; once a day at 02:xx UTC: token refresh
           [ $(( $(date -u +%H) % 3 )) -eq 0 ] && [ $(date -u +%M) -lt 20 ] && hit metrics
           [ $(date -u +%H) -eq 2 ] && [ $(date -u +%M) -lt 20 ] && hit refresh-tokens

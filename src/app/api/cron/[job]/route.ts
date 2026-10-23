@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isCronOrOwner } from "@/lib/auth";
 import { logRun } from "@/lib/db";
 import { refreshAll } from "@/lib/tokens";
+import { agentWork } from "@/pipeline/agentwork";
 import { collect } from "@/pipeline/collect";
 import { generate } from "@/pipeline/generate";
 import { collectMetrics, publishDue } from "@/pipeline/publish";
@@ -14,6 +15,7 @@ const JOBS: Record<string, () => Promise<{ summary: string }>> = {
   generate: () => generate(),
   publish: publishDue,
   metrics: collectMetrics,
+  agents: agentWork,
   "refresh-tokens": async () => ({ summary: (await refreshAll()).join(", ") }),
 };
 

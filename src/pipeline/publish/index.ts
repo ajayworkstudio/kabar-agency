@@ -1,3 +1,4 @@
+import { syncDraftTask } from "@/lib/agents";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { markMessage, sendText } from "@/lib/telegram";
@@ -93,6 +94,7 @@ export async function publishDue() {
       .from("drafts")
       .update({ status: failures ? "failed" : "published", error: failures ? `${failures} target(s) failed` : null, updated_at: new Date().toISOString() })
       .eq("id", id);
+    await syncDraftTask(id, failures ? "failed" : "done", failures ? `${failures} platform gagal` : null);
     if (d.telegram_message_id) await markMessage(d.telegram_message_id as number, failures ? "⚠️ Sebagian gagal — cek dashboard" : "✅ Terbit");
     await sendText(`<b>${content.hook}</b>\n${results.join("\n")}`);
     lines.push(`${content.hook.slice(0, 40)} → ${results.length - failures}/${results.length}`);

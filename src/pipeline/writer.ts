@@ -186,3 +186,18 @@ export async function factCheck(docs: SourceDoc[], draft: DraftContent): Promise
   const parsed = block && block.type === "tool_use" ? Check.safeParse(block.input) : null;
   return parsed?.success ? parsed.data : { verdict: "warn", issues: [{ text: "-", problem: "Fact-check tidak menghasilkan laporan; periksa manual." }] };
 }
+
+/** Short free-text briefing (daily reports, research summaries). Returns null when no API key is set. */
+export async function brief(instruction: string, material: string, maxTokens = 900): Promise<string | null> {
+  if (!env.anthropicKey) return null;
+  const res = await anthropic().messages.create({
+    model: env.anthropicModel,
+    max_tokens: maxTokens,
+    system:
+      "Kamu asisten redaksi untuk agensi konten berita. Tulis dalam bahasa Indonesia yang ringkas dan rapi. " +
+      "Hanya gunakan informasi dari materi yang diberikan; jangan menambah fakta. Netral untuk isu politik.",
+    messages: [{ role: "user", content: `${instruction}\n\n<materi>\n${material}\n</materi>` }],
+  });
+  const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n").trim();
+  return text || null;
+}
