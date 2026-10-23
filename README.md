@@ -65,7 +65,7 @@ Samples of the generated design are in `docs/samples/` (cards + `sample.mp4`).
 | Dashboard (PWA), API, collect / write / publish | Vercel (Next.js 15) | Free tier is fine to start |
 | Database + media storage | Supabase | Postgres + a public bucket the platform APIs download media from |
 | Video rendering | GitHub Actions (`render-video.yml`) | Needs ffmpeg; Vercel functions don't have it |
-| Scheduler | `vercel.json` crons **or** `heartbeat.yml` | Vercel Hobby only allows daily crons — use the GitHub heartbeat unless you're on Pro |
+| Scheduler | `heartbeat.yml` (GitHub Actions, every 20 min) | `vercel.json` only holds the daily token refresh, because Vercel Hobby rejects deploys with crons more frequent than daily. On Pro you can move the jobs back into `vercel.json` |
 | Approvals | Telegram bot + dashboard | One tap from your phone |
 
 ## Setup (≈1 hour, most of it waiting on platform approvals)
