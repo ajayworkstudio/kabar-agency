@@ -35,11 +35,9 @@ export const SOURCES: SourceDef[] = [
   { id: "detik-hot", outlet: "Detik", url: "https://hot.detik.com/rss", kind: "rss", category: "hiburan" },
 
   { id: "tempo-nasional", outlet: "Tempo", url: "https://rss.tempo.co/nasional", kind: "rss", category: "politik" },
-  { id: "tempo-bola", outlet: "Tempo", url: "https://rss.tempo.co/bola", kind: "rss", category: "olahraga" },
 
   { id: "republika", outlet: "Republika", url: "https://www.republika.co.id/rss", kind: "rss" },
   { id: "okezone", outlet: "Okezone", url: "https://sindikasi.okezone.com/index.php/okezone/RSS2.0", kind: "rss" },
-  { id: "suara", outlet: "Suara", url: "https://www.suara.com/rss/news", kind: "rss" },
 
   // ── Google News topic queries (aggregates many outlets; outlet name is read per item) ──
   { id: "gn-top", outlet: "Google News", url: "https://news.google.com/rss?hl=id&gl=ID&ceid=ID:id", kind: "google_news" },

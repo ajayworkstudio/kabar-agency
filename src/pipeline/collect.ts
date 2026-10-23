@@ -118,6 +118,26 @@ export async function collect() {
 
   const touched = new Set<string>();
   for (const it of newItems) {
+    // Claim the article first. If a parallel run already stored this URL we get nothing back
+    // and skip it — so we never create a story that has no articles.
+    const { data: claimed } = await supa
+      .from("articles")
+      .upsert(
+        {
+          source_id: it.sourceId,
+          outlet: it.outlet,
+          url: it.url,
+          title: it.title,
+          snippet: it.snippet,
+          category: guessCategory(`${it.title} ${it.snippet}`, it.category),
+          published_at: it.publishedAt?.toISOString() ?? null,
+        },
+        { onConflict: "url", ignoreDuplicates: true }
+      )
+      .select("id");
+    const articleId = claimed?.[0]?.id as string | undefined;
+    if (!articleId) continue;
+
     const titleKw = keywords(it.title);
     let story = stories.find((s) => isSameStory(titleKw, s.keywords));
     if (!story) {
@@ -133,16 +153,7 @@ export async function collect() {
       // widen the story's vocabulary a little so later headlines still match
       story.keywords = [...new Set([...story.keywords, ...titleKw])].slice(0, 40);
     }
-    await supa.from("articles").insert({
-      source_id: it.sourceId,
-      outlet: it.outlet,
-      url: it.url,
-      title: it.title,
-      snippet: it.snippet,
-      category: guessCategory(`${it.title} ${it.snippet}`, it.category),
-      published_at: it.publishedAt?.toISOString() ?? null,
-      story_id: story.id,
-    }).then(() => {}, () => {});
+    await supa.from("articles").update({ story_id: story.id }).eq("id", articleId);
     touched.add(story.id);
   }
 
