@@ -17,13 +17,14 @@ const h = (type: string, style: Record<string, unknown>, ...children: unknown[])
   props: { style: { display: "flex", ...style }, children: children.length === 1 ? children[0] : children },
 });
 
+const EN = process.env.CONTENT_LANG !== "id";
 export const THEME: Record<Category, { accent: string; label: string }> = {
-  politik: { accent: "#FF4D4F", label: "POLITIK" },
-  olahraga: { accent: "#22C55E", label: "OLAHRAGA" },
-  hiburan: { accent: "#F472B6", label: "HIBURAN" },
-  ekonomi: { accent: "#F5B301", label: "EKONOMI" },
-  teknologi: { accent: "#38BDF8", label: "TEKNOLOGI" },
-  umum: { accent: "#A78BFA", label: "NASIONAL" },
+  politik: { accent: "#FF4D4F", label: EN ? "POLITICS" : "POLITIK" },
+  olahraga: { accent: "#22C55E", label: EN ? "SPORTS" : "OLAHRAGA" },
+  hiburan: { accent: "#F472B6", label: EN ? "ENTERTAINMENT" : "HIBURAN" },
+  ekonomi: { accent: "#F5B301", label: EN ? "ECONOMY" : "EKONOMI" },
+  teknologi: { accent: "#38BDF8", label: EN ? "TECH" : "TEKNOLOGI" },
+  umum: { accent: "#A78BFA", label: EN ? "NEWS" : "NASIONAL" },
 };
 
 const INK = "#0B0F1A";

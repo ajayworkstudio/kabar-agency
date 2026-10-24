@@ -28,7 +28,7 @@ async function tts(text: string, out: string): Promise<boolean> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       input: { text },
-      voice: { languageCode: "id-ID", name: env.googleTtsVoice },
+      voice: { languageCode: env.googleTtsVoice.split("-").slice(0, 2).join("-"), name: env.googleTtsVoice },
       audioConfig: { audioEncoding: "MP3", speakingRate: 1.1, sampleRateHertz: 48000 },
     }),
   });

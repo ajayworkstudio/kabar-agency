@@ -94,7 +94,7 @@ export function twoToneTree(slide: CardSlide, o: TwoToneOpts): Node {
     "div",
     { justifyContent: "space-between", alignItems: "center", width: innerW, borderBottom: `4px solid ${ink}`, paddingBottom: 22 },
     h("div", { fontSize: 28, fontWeight: 900, letterSpacing: 2, color: ink }, o.brandName.toUpperCase()),
-    h("div", { fontSize: 26, fontWeight: 800, letterSpacing: 3, color: ink }, (slide.kicker || (slide.kind === "cover" ? "TERKINI" : "")).toUpperCase())
+    h("div", { fontSize: 26, fontWeight: 800, letterSpacing: 3, color: ink }, (slide.kicker || (slide.kind === "cover" ? (process.env.CONTENT_LANG === "id" ? "TERKINI" : "LATEST") : "")).toUpperCase())
   );
 
   const quote = slide.kind === "quote" ? [h("div", { fontSize: 200, fontWeight: 900, color: ink, lineHeight: 0.7, height: 120 }, "“")] : [];

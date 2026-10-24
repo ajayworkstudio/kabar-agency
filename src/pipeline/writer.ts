@@ -94,7 +94,7 @@ const draftToolSchema = {
   },
 } as const;
 
-function systemPrompt() {
+function systemPromptId() {
   return `Kamu adalah redaktur media sosial untuk akun berita "${env.brandName}" (${env.brandHandle}) yang menyasar anak muda Indonesia.
 
 Tugasmu: mengubah beberapa laporan berita tentang SATU peristiwa menjadi paket konten untuk Instagram, Threads, TikTok, dan YouTube Shorts.
@@ -117,6 +117,36 @@ GAYA:
 Panggil tool submit_draft tepat satu kali.`;
 }
 
+function systemPromptEn() {
+  return `You are the social media editor for the news account "${env.brandName}" (${env.brandHandle}). It covers news from Indonesia for an English-speaking audience: young Indonesians who prefer English and international followers interested in Indonesia.
+
+The source articles are mostly in Indonesian. Your job: turn several reports about ONE event into a content package for Instagram, Threads, TikTok and YouTube Shorts — written entirely in ENGLISH.
+
+ACCURACY RULES (non-negotiable):
+1. Use only facts that appear in the source documents. Never add numbers, names, quotes or dates from memory.
+2. If sources disagree, say so ("According to X …, while Y …") — never silently pick one.
+3. Claims reported by only one outlet must be attributed ("according to Detik …").
+4. Allegations and legal cases: use "allegedly", "reportedly", "according to police". Never imply guilt.
+5. Translate quotes faithfully and keep them short; mark them as translated where it matters.
+6. Politics: neutral. No opinions, no loaded words. State what happened and what each side says.
+7. Don't rewrite the article. Summarise in your own words and always credit the sources.
+
+CONTEXT FOR A GLOBAL AUDIENCE:
+- Briefly explain Indonesian names, institutions and terms on first use (e.g. "DPR, Indonesia's parliament"; "Timnas, the national football team").
+- Give amounts in rupiah as written in the source; add an approximate USD figure only if the source provides one.
+
+STYLE:
+- Clear, punchy, conversational English. No fake clickbait.
+- Strong hook in the first line/second. One idea per slide/scene.
+- End with a question that invites comments, never one that invites hate.
+- Entertainment/viral: respect privacy; no body-shaming; never identify private individuals or children.
+
+Write EVERY field value in English (the field descriptions in the tool schema are in Indonesian; follow their limits, but answer in English). Use "Source: …" for sourceCredit and English hashtags.
+Call the submit_draft tool exactly once.`;
+}
+
+const systemPrompt = () => (env.contentLang === "en" ? systemPromptEn() : systemPromptId());
+
 function renderSources(docs: SourceDoc[]) {
   return docs
     .map((d, i) => `<sumber no="${i + 1}" outlet="${d.outlet}" waktu="${d.publishedAt ?? "?"}">\nJudul: ${d.title}\n${d.text}\n</sumber>`)
@@ -133,7 +163,10 @@ export async function writeDraft(docs: SourceDoc[], hint: { category: string; tr
     messages: [
       {
         role: "user",
-        content: `Kategori perkiraan: ${hint.category}${hint.trending ? " (sedang trending di Google Indonesia)" : ""}.\nTanggal hari ini: ${new Date().toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta", dateStyle: "full" })}.\n\n${renderSources(docs)}`,
+        content:
+          env.contentLang === "en"
+            ? `Estimated category: ${hint.category}${hint.trending ? " (currently trending on Google Indonesia)" : ""}.\nToday's date: ${new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Jakarta", dateStyle: "full" })}.\nWrite the whole package in English.\n\n${renderSources(docs)}`
+            : `Kategori perkiraan: ${hint.category}${hint.trending ? " (sedang trending di Google Indonesia)" : ""}.\nTanggal hari ini: ${new Date().toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta", dateStyle: "full" })}.\n\n${renderSources(docs)}`,
       },
     ],
   });
@@ -163,7 +196,7 @@ export async function factCheck(docs: SourceDoc[], draft: DraftContent): Promise
     model: env.anthropicModel,
     max_tokens: 1500,
     system:
-      "Kamu pemeriksa fakta. Bandingkan SALINAN dengan SUMBER. Laporkan setiap kalimat di salinan yang: (a) tidak didukung sumber, (b) melebih-lebihkan, (c) menyatakan dugaan sebagai fakta, (d) memihak secara politik, atau (e) menyebut identitas orang biasa/anak. " +
+      "Kamu pemeriksa fakta. Bandingkan SALINAN dengan SUMBER (salinan boleh berbahasa Inggris — terjemahan yang setia bukan masalah; nilai maknanya). Laporkan setiap kalimat di salinan yang: (a) tidak didukung sumber, (b) melebih-lebihkan, (c) menyatakan dugaan sebagai fakta, (d) memihak secara politik, atau (e) menyebut identitas orang biasa/anak. " +
       "verdict: pass = tidak ada masalah; warn = masalah kecil/gaya; fail = ada klaim salah atau tak berdasar. Jangan menilai gaya bahasa selain hal di atas. Panggil tool report.",
     tools: [
       {

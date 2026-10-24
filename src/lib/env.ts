@@ -1,8 +1,10 @@
 const num = (v: string | undefined, d: number) => (v && !Number.isNaN(Number(v)) ? Number(v) : d);
 
 export const env = {
-  brandName: process.env.BRAND_NAME ?? "Kabar Kilat",
-  brandHandle: process.env.BRAND_HANDLE ?? "@kabarkilat.id",
+  brandName: process.env.BRAND_NAME ?? "fyinews.official",
+  brandHandle: process.env.BRAND_HANDLE ?? "@fyinews.official",
+  /** Language of everything that gets published: "en" (default) or "id". The admin dashboard stays Indonesian. */
+  contentLang: (process.env.CONTENT_LANG === "id" ? "id" : "en") as "en" | "id",
   appUrl: (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, ""),
 
   adminPassword: process.env.ADMIN_PASSWORD ?? "",
@@ -41,5 +43,5 @@ export const env = {
   githubDispatchToken: process.env.GITHUB_DISPATCH_TOKEN ?? "",
   githubRepo: process.env.GITHUB_REPO ?? "",
   googleTtsKey: process.env.GOOGLE_TTS_API_KEY ?? "",
-  googleTtsVoice: process.env.GOOGLE_TTS_VOICE ?? "id-ID-Wavenet-D",
+  googleTtsVoice: process.env.GOOGLE_TTS_VOICE ?? (process.env.CONTENT_LANG === "id" ? "id-ID-Wavenet-D" : "en-US-Neural2-D"),
 };

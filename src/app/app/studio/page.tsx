@@ -20,20 +20,20 @@ const FORMATS: { id: DesignFormat; label: string; ratio: string }[] = [
   { id: "story", label: "Story 9:16", ratio: "9 / 16" },
 ];
 
-const SAMPLE = `#Ekonomi
-Harga *beras* naik lagi di Jawa Tengah
-Ini yang perlu kamu tahu sebelum belanja minggu ini.
+const SAMPLE = `#Bundesliga
+Without *Kevin Diks*, Gladbach finally win!
+Gladbach beat Stuttgart 3-2 away for their first win of the season.
 
-#Fakta 1
-Naik Rp1.000/kg dalam *seminggu*
-Kenaikan tercatat di pasar-pasar Semarang, Solo, dan Purwokerto.
+#Full time
+Stuttgart *2-3* Gladbach
+Bundesliga matchday 7 at the MHPArena.
 
-#Kata pedagang
-> Pasokan dari petani mulai berkurang
-Pedagang Pasar Johar, Semarang.
+#Kevin Diks
+Out for *personal reasons*
+The Indonesia national team defender was left out of the squad.
 
-Di daerahmu *naik* juga?
-Ceritain di kolom komentar ya.`;
+Will Diks be back next match?
+Drop your prediction in the comments.`;
 
 export default function Studio() {
   const { ws, call, say } = useWorkspace();
@@ -43,11 +43,11 @@ export default function Studio() {
   const [slides, setSlides] = useState<CardSlide[]>(() => slidesFromText(SAMPLE));
   const [palette, setPalette] = useState({ bg: PALETTES[0].bg, fg: PALETTES[0].fg });
   const [format, setFormat] = useState<DesignFormat>("post");
-  const [title, setTitle] = useState("Harga beras naik di Jateng");
-  const [category, setCategory] = useState("ekonomi");
+  const [title, setTitle] = useState("Stuttgart vs Gladbach");
+  const [category, setCategory] = useState("olahraga");
   const [caption, setCaption] = useState("");
-  const [tags, setTags] = useState("#hargaberas #jawatengah #infosemarang");
-  const [credit, setCredit] = useState("Sumber: Antara, Kompas");
+  const [tags, setTags] = useState("#Bundesliga #KevinDiks #Gladbach #Indonesia");
+  const [credit, setCredit] = useState("Source: detikSport");
   const [targets, setTargets] = useState<string[]>(["instagram:carousel", "threads:carousel"]);
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"text" | "slides">("text");
@@ -144,7 +144,7 @@ export default function Studio() {
               </div>
             </div>
             <label className="label">Sumber (tampil di kartu)</label>
-            <input className="input" value={credit} onChange={(e) => setCredit(e.target.value)} placeholder="Sumber: …" />
+            <input className="input" value={credit} onChange={(e) => setCredit(e.target.value)} placeholder="Source: …" />
             <label className="label">Caption <span className="faint">(kosong = dibuat dari judul slide)</span></label>
             <textarea className="textarea" rows={4} value={caption} onChange={(e) => setCaption(e.target.value)} />
             <label className="label">Hashtag</label>

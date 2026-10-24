@@ -162,7 +162,7 @@ export function demoWorkspace() {
 
   return {
     demo: true,
-    brand: { name: "Kabar Kilat", handle: "@kabarkilat.id" },
+    brand: { name: "fyinews.official", handle: "@fyinews.official" },
     config: { postSlots: ["07:00", "11:30", "16:00", "19:30", "21:00"], platforms: { instagram: true, threads: true, tiktok: true, tiktokAudited: false, youtube: true, telegram: true, videoWorker: true, voiceover: false, ai: true } },
     agents: [raka, dita],
     tasks,
