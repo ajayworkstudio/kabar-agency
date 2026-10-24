@@ -7,7 +7,7 @@ import { useWorkspace } from "@/components/workspace";
 export default function Published() {
   const { ws, agent } = useWorkspace();
   const [plat, setPlat] = useState("all");
-  if (!ws) return <><Topbar title="Konten terbit" /><div className="empty">Memuat…</div></>;
+  if (!ws) return <><Topbar title="Sudah diposting" /><div className="empty">Memuat…</div></>;
   const posts = ws.posts.filter((p) => plat === "all" || p.platform === plat);
   const pub = posts.filter((p) => p.status === "published");
   const failed = posts.filter((p) => p.status === "failed");
@@ -15,7 +15,7 @@ export default function Published() {
 
   return (
     <>
-      <Topbar title="Konten terbit" />
+      <Topbar title="Sudah diposting" />
       <div className="toolbar">
         <div className="seg">
           <button aria-pressed={plat === "all"} onClick={() => setPlat("all")}>Semua</button>

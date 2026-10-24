@@ -151,3 +151,16 @@ describe("story → Dita without AI", () => {
     expect(out.credit).toBe("Source: Antara, Detik");
   });
 });
+
+describe("article link to slides", () => {
+  it("builds cover, points and a comment prompt", async () => {
+    const { articleToText, slidesFromText } = await import("../src/lib/slides");
+    const text = "Promotor menyebut 20.500 penonton dari luar negeri sudah membeli tiket konser. Penonton terutama datang dari Australia, Singapura, dan Malaysia. Konser digelar di Stadion Utama GBK pada 24 Oktober. Panggung memakai konsep 360 derajat dengan ornamen globe besar.";
+    const out = articleToText({ title: "Promotor Konser Kanye West: 20 Ribu Penonton dari Luar Negeri", text, outlet: "CNN Indonesia" }, "en");
+    const slides = slidesFromText(out.text);
+    expect(slides[0]).toMatchObject({ kind: "cover", title: "Promotor Konser Kanye West: 20 Ribu Penonton dari Luar Negeri" });
+    expect(slides.at(-1)!.kind).toBe("closing");
+    expect(slides.length).toBe(4);
+    expect(out.credit).toBe("Source: CNN Indonesia");
+  });
+});

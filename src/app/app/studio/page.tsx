@@ -5,7 +5,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Topbar } from "@/components/Shell";
 import { Avatar, CATEGORY, I, TARGETS } from "@/components/ui";
 import { useWorkspace } from "@/components/workspace";
-import { slidesFromText, storyToText, type BriefArticle } from "@/lib/slides";
+import { articleToText, slidesFromText, storyToText, type BriefArticle } from "@/lib/slides";
 import type { CardSlide } from "@/lib/types";
 import { PALETTES, type DesignFormat } from "@/pipeline/twotone";
 
@@ -54,26 +54,47 @@ function Studio() {
   const [tags, setTags] = useState("#Bundesliga #KevinDiks #Gladbach #Indonesia");
   const [credit, setCredit] = useState("Source: detikSport");
   const storyId = useSearchParams().get("story");
-  const [fromStory, setFromStory] = useState<{ headline: string; outlets: number } | null>(null);
+  const [fromStory, setFromStory] = useState<{ headline: string; from: string } | null>(null);
+  const [link, setLink] = useState("");
+  const [fetching, setFetching] = useState(false);
+  const lang = ws?.config.contentLang === "id" ? "id" : "en";
 
-  // "Kirim ke Dita" from the news list: pre-fill the studio from the story's articles (no AI needed)
+  const fill = (built: { text: string; credit: string; caption: string }, headline: string, from: string, cat?: string) => {
+    setRaw(built.text);
+    setSlides(slidesFromText(built.text));
+    setTitle(headline.slice(0, 120));
+    if (cat) setCategory(cat);
+    setCredit(built.credit);
+    setCaption(built.caption);
+    setMode("text");
+    setFromStory({ headline, from });
+  };
+
+  // Pick a hot story (or arrive via "Kirim ke Dita"): pre-fill from the story's articles, no AI needed
+  async function loadStory(id: string) {
+    if (!id) return;
+    setFetching(true);
+    const res = await fetch(`/api/stories/${id}/brief`, { cache: "no-store" }).catch(() => null);
+    setFetching(false);
+    if (!res?.ok) return say("Gagal mengambil berita");
+    const { story, articles } = (await res.json()) as { story: { headline: string; category: string; outlet_count: number }; articles: BriefArticle[] };
+    fill(storyToText(story, articles, lang, CATEGORY[story.category] ?? "News"), story.headline, `${story.outlet_count} outlet`, story.category);
+  }
+
+  // Paste a news link: read the article and pre-fill
+  async function loadLink() {
+    if (!link.trim()) return;
+    setFetching(true);
+    const res = await fetch("/api/design/from-url", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: link.trim() }) }).catch(() => null);
+    setFetching(false);
+    const j = (await res?.json().catch(() => null)) as { title: string; text: string; outlet: string; error?: string } | null;
+    if (!res?.ok || !j || j.error) return say(j?.error ?? "Gagal membaca link");
+    fill(articleToText(j, lang), j.title, j.outlet);
+    setLink("");
+  }
+
   useEffect(() => {
-    if (!storyId) return;
-    (async () => {
-      const res = await fetch(`/api/stories/${storyId}/brief`, { cache: "no-store" });
-      if (!res.ok) return;
-      const { story, articles } = (await res.json()) as { story: { headline: string; category: string; outlet_count: number }; articles: BriefArticle[] };
-      const lang = ws?.config.contentLang === "id" ? "id" : "en";
-      const built = storyToText(story, articles, lang, CATEGORY[story.category] ?? "News");
-      setRaw(built.text);
-      setSlides(slidesFromText(built.text));
-      setTitle(story.headline.slice(0, 120));
-      setCategory(story.category);
-      setCredit(built.credit);
-      setCaption(built.caption);
-      setMode("text");
-      setFromStory({ headline: story.headline, outlets: story.outlet_count });
-    })();
+    if (storyId) loadStory(storyId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storyId]);
   const [targets, setTargets] = useState<string[]>(["instagram:carousel", "threads:carousel"]);
@@ -110,9 +131,25 @@ function Studio() {
             </div>
           )}
 
+          <div className="card card-b source-box">
+            <div className="label" style={{ marginTop: 0 }}>Ambil bahan</div>
+            <select className="select" value="" disabled={fetching} onChange={(e) => loadStory(e.target.value)} aria-label="Pilih berita terpanas">
+              <option value="">🔥 Pilih dari berita terpanas…</option>
+              {(ws?.stories ?? []).slice(0, 20).map((st) => <option key={st.id} value={st.id}>{st.headline.slice(0, 90)}</option>)}
+            </select>
+            <div className="row" style={{ marginTop: 6 }}>
+              <input className="input" placeholder="…atau tempel link berita" value={link} onChange={(e) => setLink(e.target.value)} onKeyDown={(e) => e.key === "Enter" && loadLink()} aria-label="Link berita" />
+              <button className="btn sm" disabled={fetching || !link.trim()} onClick={loadLink}>{fetching ? "Membaca…" : "Ambil"}</button>
+            </div>
+            <div className="row" style={{ marginTop: 6, fontSize: 12 }}>
+              <button className="btn ghost sm" onClick={() => { applyText(""); setFromStory(null); setCaption(""); setTitle("Desain baru"); }}>Kosongkan</button>
+              <button className="btn ghost sm" onClick={() => { applyText(SAMPLE); setFromStory(null); }}>Contoh format</button>
+            </div>
+          </div>
+
           {fromStory && (
             <div className="note" style={{ marginBottom: 12 }}>
-              Diisi dari berita <b>“{fromStory.headline}”</b> ({fromStory.outlets} outlet). Teks masih mengikuti bahasa sumber —
+              Diisi dari <b>“{fromStory.headline}”</b> ({fromStory.from}). Teks masih mengikuti bahasa sumber —
               {ws?.config.contentLang === "id" ? " rapikan seperlunya," : " terjemahkan ke bahasa Inggris & rapikan,"} lalu kirim ke Inbox.
             </div>
           )}
@@ -194,11 +231,12 @@ function Studio() {
           </details>
 
           <div className="action-bar">
-            <button className="btn primary" disabled={busy || !slides.length} onClick={submit}><I.inbox size={14} /> {busy ? "Mendesain…" : "Kirim ke Inbox untuk disetujui"}</button>
+            <button className="btn" disabled={busy || !slides.length} onClick={submit} title="Opsional — kamu juga bisa langsung unduh PNG & salin caption di panel pratinjau"><I.inbox size={14} /> {busy ? "Menyimpan…" : "Simpan ke Siap posting"}</button>
           </div>
         </div>
 
-        <Preview slides={slides} palette={palette} format={format} credit={credit} ratio={FORMATS.find((f) => f.id === format)!.ratio} />
+        <Preview slides={slides} palette={palette} format={format} credit={credit} ratio={FORMATS.find((f) => f.id === format)!.ratio}
+          caption={`${(caption.trim() || slides.map((s) => s.title.replace(/\*/g, "")).slice(0, 2).join(" — "))}${tags.trim() ? `\n\n${tags.trim()}` : ""}`} onCopied={() => say("Caption disalin")} />
       </div>
     </>
   );
@@ -216,7 +254,7 @@ function Contrast({ bg, fg }: { bg: string; fg: string }) {
   return <div className={`tag ${ok ? "ok" : "warn"}`} style={{ marginTop: 8 }}>Kontras {ratio.toFixed(1)}:1 · {ok ? "mudah dibaca" : "kurang kontras — teks kecil sulit dibaca"}</div>;
 }
 
-function Preview({ slides, palette, format, credit, ratio }: { slides: CardSlide[]; palette: { bg: string; fg: string }; format: DesignFormat; credit: string; ratio: string }) {
+function Preview({ slides, palette, format, credit, ratio, caption, onCopied }: { slides: CardSlide[]; palette: { bg: string; fg: string }; format: DesignFormat; credit: string; ratio: string; caption: string; onCopied: () => void }) {
   const [urls, setUrls] = useState<(string | null)[]>([]);
   const [loading, setLoading] = useState(false);
   const key = useMemo(() => JSON.stringify({ slides, palette, format, credit }), [slides, palette, format, credit]);
@@ -264,7 +302,8 @@ function Preview({ slides, palette, format, credit, ratio }: { slides: CardSlide
       <div className="row" style={{ marginBottom: 10 }}>
         <span className="muted">{slides.length} slide {loading && "· merender…"}</span>
         <span className="grow" />
-        <button className="btn sm" disabled={!urls.some(Boolean)} onClick={downloadAll}>Unduh semua PNG</button>
+        <button className="btn sm" onClick={() => navigator.clipboard.writeText(caption).then(onCopied)}>Salin caption</button>
+        <button className="btn sm primary" disabled={!urls.some(Boolean)} onClick={downloadAll}>Unduh semua PNG</button>
       </div>
       <div className={`preview-grid ${format}`}>
         {slides.map((_, i) => (

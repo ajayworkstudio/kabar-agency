@@ -20,7 +20,7 @@ function Inbox() {
   const router = useRouter();
   const sel = q.get("i");
 
-  if (!ws) return <><Topbar title="Inbox" /><div className="empty">Memuat…</div></>;
+  if (!ws) return <><Topbar title="Siap posting" /><div className="empty">Memuat…</div></>;
 
   const items: Item[] = [
     ...ws.drafts.filter((d) => d.status === "ready").map((d) => ({
@@ -43,7 +43,7 @@ function Inbox() {
 
   return (
     <>
-      <Topbar title="Inbox"><span className="muted">{items.filter((i) => i.unread).length} perlu disetujui · {ws.drafts.filter((d) => d.status === "ready").length} siap diposting</span></Topbar>
+      <Topbar title="Siap posting"><span className="muted">{items.filter((i) => i.unread).length} perlu disetujui · {ws.drafts.filter((d) => d.status === "ready").length} siap diposting</span></Topbar>
       <div className={`split ${current ? "has-detail" : ""}`}>
         <div className="pane">
           {items.length === 0 && <div className="empty"><I.check size={22} /><div style={{ marginTop: 8 }}>Semua beres. Draft baru akan muncul di sini begitu karyawan menulisnya.</div></div>}

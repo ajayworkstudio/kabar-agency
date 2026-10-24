@@ -51,3 +51,28 @@ export function storyToText(story: { headline: string; category: string }, artic
     caption: `${story.headline}\n\n${lang === "en" ? "Source" : "Sumber"}: ${outlets}`,
   };
 }
+
+/**
+ * Turn one article (from a pasted link) into Studio text, without AI.
+ * Cover = headline + lead sentence, then the next sentences ~2 per slide, then a comment prompt.
+ */
+export function articleToText(a: { title: string; text: string; outlet: string }, lang: "en" | "id") {
+  const sentences = a.text
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+(?=[A-Z"“])/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 30 && s.length < 320);
+  const lead = sentences.shift() ?? "";
+  const points: string[] = [];
+  for (let i = 0; i < sentences.length && points.length < 4; i += 2) {
+    const [t, b] = [sentences[i], sentences[i + 1]];
+    points.push(`${clip(t, 110)}${b ? `\n${clip(b, 170)}` : ""}`);
+  }
+  const src = `${lang === "en" ? "Source" : "Sumber"}: ${a.outlet}`;
+  const blocks = [
+    `${clip(a.title, 110)}${lead ? `\n${clip(lead, 170)}` : ""}`,
+    ...points,
+    lang === "en" ? "What's your take?\nDrop it in the comments." : "Menurutmu gimana?\nTulis di kolom komentar ya.",
+  ];
+  return { text: blocks.join("\n\n"), credit: src, caption: `${a.title}\n\n${src}` };
+}

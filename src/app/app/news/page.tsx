@@ -9,7 +9,7 @@ export default function News() {
   const { ws, call } = useWorkspace();
   const [cat, setCat] = useState("all");
   const [busy, setBusy] = useState<string | null>(null);
-  if (!ws) return <><Topbar title="Berita & sumber" /><div className="empty">Memuat…</div></>;
+  if (!ws) return <><Topbar title="Cari berita" /><div className="empty">Memuat…</div></>;
   const a0 = ws.agents.find((a) => a.status === "active");
   const need = (c: string) => (c === "politik" ? a0?.settings.minSourcesPolitics ?? 3 : a0?.settings.minSources ?? 2);
   const stories = ws.stories.filter((s) => cat === "all" || s.category === cat);
@@ -24,7 +24,7 @@ export default function News() {
 
   return (
     <>
-      <Topbar title="Berita & sumber" />
+      <Topbar title="Cari berita" />
       <div className="page">
         {ws.trends.length > 0 && (
           <>

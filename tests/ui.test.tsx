@@ -34,9 +34,14 @@ async function render(mod: string, opts: { path: string; query?: Record<string, 
 
 describe("admin pages render with demo data", () => {
   it("overview", async () => {
-    const html = await render("../src/app/app/page", { path: "/app" });
+    const html = await render("../src/app/app/overview/page", { path: "/app/overview" });
     expect(html).toContain("Menunggu persetujuan");
     expect(html).toContain("Raka");
+  });
+  it("home is the design studio", async () => {
+    const html = await render("../src/app/app/page", { path: "/app" });
+    expect(html).toContain("Ambil bahan");
+    expect(html).toContain("Salin caption");
   });
   it("inbox list + draft detail + research detail", async () => {
     expect(await render("../src/app/app/inbox/page", { path: "/app/inbox" })).toContain("Timnas Lolos");
@@ -72,6 +77,7 @@ describe("admin pages render with demo data", () => {
   });
   it("shell sidebar", () => {
     const html = renderToString(<Shell><div /></Shell>);
-    expect(html).toContain("Inbox");
+    expect(html).toContain("Studio desain");
+    expect(html).toContain("Siap posting");
   });
 });
