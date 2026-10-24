@@ -110,13 +110,13 @@ export function twoToneTree(slide: CardSlide, o: TwoToneOpts): Node {
       h("div", { fontSize: 26, fontWeight: 800, color: ink }, o.brandHandle)
     ),
     o.total > 1
-      ? h("div", { fontSize: 28, fontWeight: 900, color: paper, backgroundColor: ink, padding: "8px 16px" }, `${o.index + 1}/${o.total}${slide.kind === "cover" ? " →" : ""}`)
+      ? h("div", { fontSize: 28, fontWeight: 900, color: paper, backgroundColor: ink, padding: "8px 16px" }, `${o.index + 1}/${o.total}${slide.kind === "cover" ? " ›" : ""}`)
       : h("div", {}, "")
   );
 
   return h(
     "div",
-    { width: W, height: H, backgroundColor: paper, fontFamily: "Inter" },
+    { width: W, height: H, backgroundColor: paper, fontFamily: "Plus Jakarta Sans" },
     h("div", { width: innerW, height: H - top - bottom, marginTop: top, marginLeft: pad, flexDirection: "column", justifyContent: "space-between" }, header, middle, footer)
   );
 }

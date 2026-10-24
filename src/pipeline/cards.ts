@@ -30,17 +30,18 @@ const INK = "#0B0F1A";
 const PAPER = "#F7F5F0";
 const MUTED = "#9AA3B5";
 
-let fontCache: { name: string; data: Buffer; weight: 400 | 600 | 800 | 900; style: "normal" }[] | null = null;
+/** Card typeface: Plus Jakarta Sans (OFL). Weight 900 requests resolve to ExtraBold 800. */
+export const CARD_FONT = "Plus Jakarta Sans";
+let fontCache: { name: string; data: Buffer; weight: 400 | 600 | 800; style: "normal" }[] | null = null;
 async function fonts() {
   if (fontCache) return fontCache;
   const dir = path.join(process.cwd(), "assets", "fonts");
   const load = (f: string) => readFile(path.join(dir, f));
-  const [r, sb, xb, bl] = await Promise.all([load("Inter-Regular.otf"), load("Inter-SemiBold.otf"), load("Inter-ExtraBold.otf"), load("Inter-Black.otf")]);
+  const [r, sb, xb] = await Promise.all([load("PlusJakartaSans-400.woff"), load("PlusJakartaSans-600.woff"), load("PlusJakartaSans-800.woff")]);
   fontCache = [
-    { name: "Inter", data: r, weight: 400, style: "normal" },
-    { name: "Inter", data: sb, weight: 600, style: "normal" },
-    { name: "Inter", data: xb, weight: 800, style: "normal" },
-    { name: "Inter", data: bl, weight: 900, style: "normal" },
+    { name: CARD_FONT, data: r, weight: 400, style: "normal" },
+    { name: CARD_FONT, data: sb, weight: 600, style: "normal" },
+    { name: CARD_FONT, data: xb, weight: 800, style: "normal" },
   ];
   return fontCache;
 }
@@ -115,13 +116,13 @@ function cardTree(slide: CardSlide, o: CardOpts): Node {
       h("div", { fontSize: 26, fontWeight: 600, color: isCover ? MUTED : isClosing ? "#1B2233" : "#5B6375" }, o.sourceCredit),
       h("div", { fontSize: 26, fontWeight: 800, color: fg }, o.brandHandle)
     ),
-    o.total > 1 ? h("div", { fontSize: 30, fontWeight: 800, color: isCover ? accent : fg }, `${o.index + 1}/${o.total}${isCover ? "  →" : ""}`) : h("div", {}, "")
+    o.total > 1 ? h("div", { fontSize: 30, fontWeight: 800, color: isCover ? accent : fg }, `${o.index + 1}/${o.total}${isCover ? " ›" : ""}`) : h("div", {}, "")
   );
 
   // satori sizes boxes content-box, so pad with an inner frame of explicit size
   return h(
     "div",
-    { width: W, height: H, backgroundColor: bg, fontFamily: "Inter" },
+    { width: W, height: H, backgroundColor: bg, fontFamily: CARD_FONT },
     h(
       "div",
       // story/video: keep clear of TikTok/Shorts UI overlays at the top and bottom
