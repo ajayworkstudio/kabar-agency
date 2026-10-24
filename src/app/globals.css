@@ -437,6 +437,7 @@ details.nav-fold[open] > summary::after { transform: rotate(90deg); }
   .swatch { width: 52px; height: 34px; }
 
   .studio { padding-bottom: 76px; }
+  .preview-empty { aspect-ratio: auto !important; width: auto; margin: 0 14px; padding: 18px; }
   .studio-preview { padding: 12px 0 8px; background: linear-gradient(var(--bg-2), var(--bg)); }
   .preview-head { padding: 0 14px; }
   .preview-head .btn:not(.one-dl) { display: none; }
@@ -455,3 +456,10 @@ details.nav-fold[open] > summary::after { transform: rotate(90deg); }
   .studio .action-bar { position: static; background: none; }
 }
 @media (max-width: 560px) { .hide-sm { display: none; } }
+.preview-empty {
+  width: min(400px, 78%); margin: 10px auto; border: 1.5px dashed var(--line-2); border-radius: 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 24px; text-align: center;
+}
+.preview-empty div { font-weight: 600; color: var(--text-2); }
+.preview-empty span { font-size: 12.5px; color: var(--faint); max-width: 240px; line-height: 1.5; }
+.swipe[hidden] { display: none; }

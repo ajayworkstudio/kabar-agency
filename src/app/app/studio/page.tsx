@@ -24,21 +24,6 @@ const FORMATS: { id: DesignFormat; label: string; ratio: string }[] = [
   { id: "story", label: "Story 9:16", ratio: "9 / 16" },
 ];
 
-const SAMPLE = `#Bundesliga
-Without *Kevin Diks*, Gladbach finally win!
-Gladbach beat Stuttgart 3-2 away for their first win of the season.
-
-#Full time
-Stuttgart *2-3* Gladbach
-Bundesliga matchday 7 at the MHPArena.
-
-#Kevin Diks
-Out for *personal reasons*
-The Indonesia national team defender was left out of the squad.
-
-Will Diks be back next match?
-Drop your prediction in the comments.`;
-
 export default function Page() {
   return <Suspense><Studio /></Suspense>;
 }
@@ -47,15 +32,15 @@ function Studio() {
   const { ws, call, say } = useWorkspace();
   const designers = ws?.agents.filter((a) => a.kind === "designer") ?? [];
   const [agentId, setAgentId] = useState<string | null>(null);
-  const [raw, setRaw] = useState(SAMPLE);
-  const [slides, setSlides] = useState<CardSlide[]>(() => slidesFromText(SAMPLE));
+  const [raw, setRaw] = useState("");
+  const [slides, setSlides] = useState<CardSlide[]>([]);
   const [palette, setPalette] = useState({ bg: PALETTES[0].bg, fg: PALETTES[0].fg });
   const [format, setFormat] = useState<DesignFormat>("post");
-  const [title, setTitle] = useState("Stuttgart vs Gladbach");
-  const [category, setCategory] = useState("olahraga");
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("umum");
   const [caption, setCaption] = useState("");
-  const [tags, setTags] = useState("#Bundesliga #KevinDiks #Gladbach #Indonesia");
-  const [credit, setCredit] = useState("Source: detikSport");
+  const [tags, setTags] = useState("");
+  const [credit, setCredit] = useState("");
   const storyId = useSearchParams().get("story");
   const [fromStory, setFromStory] = useState<{ headline: string; from: string; ai?: boolean } | null>(null);
   const [src, setSrc] = useState<"raw" | "link" | "hot">("raw");
@@ -129,6 +114,7 @@ function Studio() {
 
 
   const applyText = (t: string) => { setRaw(t); setSlides(slidesFromText(t)); };
+  const reset = () => { applyText(""); setFromStory(null); setCaption(""); setTitle(""); setCredit(""); setTags(""); setRawNews(""); setLink(""); setExtra(""); };
   // while typing in the bullets box, blank lines are kept — strip them before preview / save
   const clean = useMemo(() => slides.map((x) => { const b = x.bullets?.map((y) => y.trim()).filter(Boolean); return { ...x, bullets: b?.length ? b : undefined }; }), [slides]);
   const setSlide = (i: number, patch: Partial<CardSlide>) => setSlides((ss) => ss.map((s, k) => (k === i ? { ...s, ...patch } : s)));
@@ -138,7 +124,7 @@ function Studio() {
     if (!slides.length) return say("Tambahkan minimal 1 slide");
     setBusy(true);
     const r = await call<{ id: string }>("/api/design", "POST", {
-      agent_id: designer?.id ?? null, title, category, slides: clean, palette, format, caption, sourceCredit: credit, targets,
+      agent_id: designer?.id ?? null, title: (title.trim() || clean[0]?.title.replace(/\*/g, "") || "Desain").slice(0, 200).padEnd(2, "."), category, slides: clean, palette, format, caption, sourceCredit: credit, targets,
       hashtags: tags.split(/\s+/).filter(Boolean),
     }, "Desain dikirim ke Inbox untuk disetujui");
     setBusy(false);
@@ -208,8 +194,7 @@ function Studio() {
             )}
 
             <div className="row" style={{ marginTop: 6, fontSize: 12 }}>
-              <button className="btn ghost sm" onClick={() => { applyText(""); setFromStory(null); setCaption(""); setTitle("Desain baru"); }}>Kosongkan slide</button>
-              <button className="btn ghost sm" onClick={() => { applyText(SAMPLE); setFromStory(null); }}>Contoh format</button>
+              <button className="btn ghost sm" onClick={reset}>Kosongkan semua</button>
             </div>
           </div>
 
@@ -226,7 +211,8 @@ function Studio() {
 
           {mode === "text" ? (
             <>
-              <textarea className="textarea mono" rows={14} value={raw} onChange={(e) => applyText(e.target.value)} aria-label="Teks desain" style={{ fontSize: 12.5 }} />
+              <textarea className="textarea mono" rows={14} value={raw} onChange={(e) => applyText(e.target.value)} aria-label="Teks desain" style={{ fontSize: 12.5 }}
+                placeholder={"Tulis atau tempel teks slide di sini.\n\nJudul slide 1\nIsi singkat\n\n#Label\nJudul slide 2\n- Poin: nilai"} />
               <div className="faint" style={{ fontSize: 12, lineHeight: 1.6, marginTop: 6 }}>
                 Baris kosong = slide baru · baris pertama = judul, sisanya isi · <span className="mono">#Label</span> = label kecil ·{" "}
                 <span className="mono">&gt; teks</span> = kutipan · <span className="mono">*kata*</span> = sorotan blok warna ·{" "}
@@ -279,7 +265,7 @@ function Studio() {
           <details className="fold" style={{ marginTop: 16 }} open>
             <summary>Detail posting</summary>
             <div className="grid g-2" style={{ gap: 8 }}>
-              <div><label className="label">Nama desain</label><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+              <div><label className="label">Nama desain</label><input className="input" value={title} placeholder="Otomatis dari judul slide 1" onChange={(e) => setTitle(e.target.value)} /></div>
               <div><label className="label">Kategori</label>
                 <select className="select" value={category} onChange={(e) => setCategory(e.target.value)}>{Object.entries(CATEGORY).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
               </div>
@@ -401,7 +387,14 @@ function Preview({ slides, palette, format, credit, ratio, caption, onCopied }: 
         <button className="btn sm primary" disabled={!urls.some(Boolean)} onClick={downloadAll}>Unduh semua</button>
       </div>
 
-      <div className={`swipe ${format}`}>
+      {slides.length === 0 && (
+        <div className="preview-empty" style={{ aspectRatio: ratio }}>
+          <div>Belum ada slide</div>
+          <span>Tempel teks berita atau tulis slide di kolom teks — pratinjau muncul di sini.</span>
+        </div>
+      )}
+
+      <div className={`swipe ${format}`} hidden={slides.length === 0}>
         <button className="swipe-nav prev" onClick={() => go(active - 1)} disabled={active === 0} aria-label="Slide sebelumnya">‹</button>
         <div className="swipe-track" ref={track} onScroll={onScroll}>
           {slides.map((_, i) => (
@@ -430,10 +423,10 @@ function Preview({ slides, palette, format, credit, ratio, caption, onCopied }: 
       </div>
 
       {/* phone: big thumb-reachable actions */}
-      <div className="mobile-actions">
+      {slides.length > 0 && <div className="mobile-actions">
         <button className="btn" onClick={copy}>Salin caption</button>
-        <button className="btn primary" disabled={!urls.some(Boolean)} onClick={downloadAll}>Unduh {slides.length} slide</button>
-      </div>
+        <button className="btn primary" disabled={!urls.some(Boolean)} onClick={downloadAll}>{`Unduh ${slides.length} slide`}</button>
+      </div>}
     </div>
   );
 }
