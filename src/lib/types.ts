@@ -17,6 +17,7 @@ export type CardSlide = {
   kicker?: string;   // small label above title, e.g. "POLITIK" / "FAKTA 1"
   title: string;     // big text
   body?: string;     // supporting text
+  bullets?: string[]; // list rows; "Label: value" renders as a two-column row
 };
 
 export type VideoScene = {

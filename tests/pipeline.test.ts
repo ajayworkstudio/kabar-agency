@@ -204,3 +204,40 @@ Panggung konser mengusung konsep 360 derajat dengan ornamen globe berukuran besa
     expect(slides.every((s) => !s.kicker)).toBe(true);
   });
 });
+
+describe("bullet lists on slides", () => {
+  it("parses '- ' lines into bullets and round-trips", async () => {
+    const { slidesFromText, slidesToText } = await import("../src/lib/slides");
+    const text = "#Price list\niPhone Duo *prices*\nAll four options.\n- iPhone Duo 256 GB: Rp 45.678.910\n- iPhone Duo 512 GB: Rp 51.999.000\n\nThat's it";
+    const slides = slidesFromText(text);
+    expect(slides[0]).toMatchObject({ kicker: "Price list", title: "iPhone Duo *prices*", body: "All four options.", bullets: ["iPhone Duo 256 GB: Rp 45.678.910", "iPhone Duo 512 GB: Rp 51.999.000"] });
+    expect(slides[1].bullets).toBeUndefined();
+    expect(slidesFromText(slidesToText(slides))).toEqual(slides);
+  });
+
+  it("summariser turns a price list in the article into a bullet slide", async () => {
+    const { summarizeRaw } = await import("../src/lib/summarize");
+    const { slidesFromText } = await import("../src/lib/slides");
+    const raw = `Harga iPhone Duo Resmi di Indonesia
+
+Jakarta, CNBC Indonesia -- Apple resmi merilis iPhone Duo di Indonesia hari ini. Ponsel lipat itu dijual mulai Rp45,6 juta untuk varian terkecil.
+
+Berikut daftar harga iPhone Duo di Indonesia:
+- iPhone Duo 256 GB: Rp 45.678.910
+- iPhone Duo 512 GB: Rp 51.999.000
+- iPhone Duo 1 TB: Rp 61.999.000
+
+Pemesanan awal dibuka mulai 30 Oktober melalui iBox dan Erafone. Unit pertama dijadwalkan sampai ke konsumen pada 7 November 2026.`;
+    const slides = slidesFromText(summarizeRaw(raw, { slides: 5, quote: false, closing: "question", labels: "numbered" }, "en")!.text);
+    const list = slides.find((s) => s.bullets);
+    expect(list?.title).toBe("Daftar harga iPhone Duo di Indonesia");
+    expect(list?.bullets).toEqual(["iPhone Duo 256 GB: Rp 45.678.910", "iPhone Duo 512 GB: Rp 51.999.000", "iPhone Duo 1 TB: Rp 61.999.000"]);
+    expect(slides.map((s) => s.title).join(" ")).not.toContain("Rp 51.999.000"); // list lines don't leak into fact slides
+  });
+
+  it("renders a bullet slide", async () => {
+    const { renderCarousel } = await import("../src/pipeline/cards");
+    const out = await renderCarousel([{ kind: "point", title: "Prices", bullets: ["256 GB: Rp 45.678.910", "No colon row"] }], { category: "teknologi", brandName: "b", brandHandle: "@b", sourceCredit: "", palette: { bg: "#F4F1EA", fg: "#111111" } });
+    expect(out[0].byteLength).toBeGreaterThan(10000);
+  });
+});

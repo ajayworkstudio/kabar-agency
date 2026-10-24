@@ -6,6 +6,16 @@
  * - a slide starting with ">" is a quote; "#label" on its own first line sets the small label
  * - first slide is the cover, last slide (if 3+) is the closing
  */
+/** "- item", "• item", "* item" (note the space — "*word*" is a highlight) or "1. item" */
+export const BULLET = /^(?:[-–•]\s+|\*\s+|\d{1,2}[.)]\s+)/;
+
+/** Inverse of slidesFromText, for turning structured slides back into editable text. */
+export function slidesToText(slides: { kind: string; kicker?: string; title: string; body?: string; bullets?: string[] }[]) {
+  return slides
+    .map((s) => [s.kicker ? `#${s.kicker}` : "", `${s.kind === "quote" ? "> " : ""}${s.title.trim()}`, s.body?.trim() ?? "", ...(s.bullets ?? []).map((b) => `- ${b.trim()}`)].filter(Boolean).join("\n"))
+    .join("\n\n");
+}
+
 export function slidesFromText(text: string) {
   const blocks = text.replace(/\r/g, "").split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
   return blocks.map((b, i) => {
@@ -14,10 +24,13 @@ export function slidesFromText(text: string) {
     if (lines[0]?.startsWith("#") && lines.length > 1) { kicker = lines[0].replace(/^#+\s*/, ""); lines = lines.slice(1); }
     const quote = lines[0]?.startsWith(">");
     const title = (lines[0] ?? "").replace(/^>\s*/, "");
-    const body = lines.slice(1).join(" ");
+    const rest = lines.slice(1);
+    const isBullet = (l: string) => BULLET.test(l);
+    const bullets = rest.filter(isBullet).map((l) => l.replace(BULLET, "").trim()).filter(Boolean);
+    const body = rest.filter((l) => !isBullet(l)).join(" ");
     const kind: "cover" | "point" | "quote" | "closing" =
       i === 0 ? "cover" : quote ? "quote" : i === blocks.length - 1 && blocks.length >= 3 ? "closing" : "point";
-    return { kind, kicker, title, body: body || undefined };
+    return { kind, kicker, title, body: body || undefined, ...(bullets.length ? { bullets } : {}) };
   });
 }
 

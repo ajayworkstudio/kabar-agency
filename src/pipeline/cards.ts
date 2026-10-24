@@ -105,7 +105,10 @@ function cardTree(slide: CardSlide, o: CardOpts): Node {
     ...(quoteMark ? [quoteMark] : []),
     isCover ? h("div", { width: 140, height: 14, backgroundColor: accent }) : h("div", { width: 0, height: 0 }),
     h("div", { fontSize: tSize, fontWeight: 900, lineHeight: 1.04, letterSpacing: -2, color: fg }, slide.title),
-    ...(slide.body ? [h("div", { fontSize: o.format === "story" ? 44 : 40, fontWeight: 400, lineHeight: 1.35, color: sub }, slide.body)] : [])
+    ...(slide.body ? [h("div", { fontSize: o.format === "story" ? 44 : 40, fontWeight: 400, lineHeight: 1.35, color: sub }, slide.body)] : []),
+    ...(slide.bullets?.length
+      ? [h("div", { flexDirection: "column", gap: 10 }, ...slide.bullets.slice(0, 8).map((b) => h("div", { fontSize: slide.bullets!.length > 5 ? 32 : 36, fontWeight: 500, lineHeight: 1.3, color: sub }, `•  ${b.replace(/\*/g, "")}`)))]
+      : [])
   );
 
   const footer = h(

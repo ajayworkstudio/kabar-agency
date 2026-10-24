@@ -49,8 +49,8 @@ const CONNECTOR = /^(selain itu|sementara itu|menurutnya|menurut dia|di sisi lai
 
 function sentences(text: string): string[] {
   return text
-    .replace(/\s+/g, " ")
-    .split(/(?<=[.!?…]["”']?)\s+(?=["“']?[\p{Lu}\d])/u)
+    .split(/\n\s*\n/) // paragraphs always end a sentence
+    .flatMap((para) => para.replace(/\s+/g, " ").split(/(?<=[.!?…]["”']?)\s+(?=["“']?(?:[\p{Lu}\d]|[a-z][A-Z]))/u))
     .map((s) => s.trim().replace(CONNECTOR, "").replace(/^\p{Ll}/u, (c) => c.toUpperCase()))
     .filter((s) => s.length >= 25);
 }
@@ -90,6 +90,32 @@ function findQuote(raw: string): Quote | null {
   return best;
 }
 
+const LIST_MARK = /^(?:[-–•]\s+|\*\s+|\d{1,2}[.)]\s+)/;
+/** Short "Label: value" line, e.g. "iPhone Duo 256 GB: Rp 45.678.910" (not a sentence). */
+const KV = /^[^.!?:]{2,60}:\s*\S[^.!?]{0,50}[^.!?\s]$/;
+
+/** Pull the first run of 2+ list lines out of the text, with the line above it as heading. */
+function extractList(text: string): { heading: string | null; items: string[]; text: string } | null {
+  const lines = text.split("\n");
+  const isItem = (l: string) => LIST_MARK.test(l.trim()) || KV.test(l.trim());
+  for (let i = 0; i < lines.length; i++) {
+    if (!isItem(lines[i])) continue;
+    let j = i;
+    while (j < lines.length && (isItem(lines[j]) || (!lines[j].trim() && j + 1 < lines.length && isItem(lines[j + 1])))) j++;
+    const items = lines.slice(i, j).map((l) => l.trim().replace(LIST_MARK, "").replace(/\s*:\s*/, ": ").replace(/[;,]$/, "")).filter(Boolean);
+    if (items.length < 2) { i = j; continue; }
+    // heading = nearest non-empty line above, if it's short or ends with ":"
+    let k = i - 1;
+    while (k >= 0 && !lines[k].trim()) k--;
+    const above = k >= 0 ? lines[k].trim() : "";
+    const useHeading = above && (above.endsWith(":") || above.length <= 90);
+    const heading = useHeading ? above.replace(/:$/, "").replace(/^(berikut|here are|here's)\s+(ini\s+)?/i, "").replace(/^\p{Ll}/u, (c) => c.toUpperCase()) : null;
+    const rest = [...lines.slice(0, useHeading && above.endsWith(":") ? k : i), ...lines.slice(j)].join("\n");
+    return { heading: heading && heading.length >= 4 ? clip(heading, 90) : null, items: items.slice(0, 8), text: rest };
+  }
+  return null;
+}
+
 export function summarizeRaw(raw: string, fmt: SummaryFormat, lang: "en" | "id") {
   let text = raw.replace(/\r/g, "");
   for (const j of JUNK) text = text.replace(j, "");
@@ -103,6 +129,8 @@ export function summarizeRaw(raw: string, fmt: SummaryFormat, lang: "en" | "id")
   }
   const dl = dateline(text);
   text = dl.text;
+  const list = extractList(text);
+  if (list) text = list.text;
   const quote = fmt.quote ? findQuote(text) : null;
 
   const all = sentences(text);
@@ -122,7 +150,7 @@ export function summarizeRaw(raw: string, fmt: SummaryFormat, lang: "en" | "id")
     return { s, i, score: kw + num + pos + len + quoted };
   });
 
-  const fixed = 1 + (fmt.closing !== "none" ? 1 : 0) + (quote ? 1 : 0);
+  const fixed = 1 + (fmt.closing !== "none" ? 1 : 0) + (quote ? 1 : 0) + (list ? 1 : 0);
   const nPoints = Math.max(1, fmt.slides - fixed);
   const picked = scored
     .filter((x) => x.i !== 0)
@@ -132,8 +160,12 @@ export function summarizeRaw(raw: string, fmt: SummaryFormat, lang: "en" | "id")
 
   const label = (k: number) => (fmt.labels === "numbered" ? `#${lang === "en" ? "Fact" : "Fakta"} ${k}\n` : "");
   const coverTitle = headline ?? titleBody(lead).title;
+  const listBlock = list
+    ? [`${fmt.labels === "numbered" ? `#${lang === "en" ? "Details" : "Rincian"}\n` : ""}${list.heading ?? (lang === "en" ? "Key details" : "Rincian lengkap")}\n${list.items.map((x) => `- ${clip(x, 120)}`).join("\n")}`]
+    : [];
   const blocks: string[] = [
     `${highlight(clip(coverTitle, 110))}\n${clip(headline ? lead : titleBody(lead).body ?? "", 200)}`.trim(),
+    ...listBlock,
     ...picked.map((p, k) => {
       const tb = titleBody(p.s);
       return `${label(k + 1)}${highlight(tb.title)}${tb.body ? `\n${tb.body}` : ""}`;

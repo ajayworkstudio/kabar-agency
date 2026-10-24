@@ -66,6 +66,32 @@ function richText(text: string, size: number, weight: number, ink: string, paper
   );
 }
 
+/**
+ * List rows. "Label: value" → label left, bold value right (price lists, specs, scores);
+ * anything else → a dash marker and the text. Thin rules between rows, same two colours.
+ */
+function bulletList(items: string[], size: number, ink: string, paper: string, width: number) {
+  const longest = Math.max(...items.map((b) => b.replace(/\*/g, "").length));
+  const fs = Math.round(size * (items.length > 7 ? 0.74 : items.length > 5 ? 0.86 : 1) * (longest > 44 ? 0.88 : 1));
+  const padY = Math.round(fs * 0.36);
+  return h(
+    "div",
+    { flexDirection: "column", width, borderTop: `3px solid ${ink}` },
+    ...items.map((b) => {
+      const m = b.match(/^(.{2,80}?):\s+(.{1,60})$/);
+      const row = { width, alignItems: "center", padding: `${padY}px 0`, borderBottom: `2px solid ${ink}`, fontSize: fs, color: ink, lineHeight: 1.2 };
+      if (m) {
+        return h("div", row,
+          h("div", { flexGrow: 1, flexShrink: 1, fontWeight: 500, paddingRight: 24 }, m[1].replace(/\*/g, "")),
+          h("div", { flexShrink: 0, fontWeight: 900, letterSpacing: -fs * 0.01 }, m[2].replace(/\*/g, "")));
+      }
+      return h("div", row,
+        h("div", { flexShrink: 0, width: Math.round(fs * 1.45), fontWeight: 900 }, "—"),
+        h("div", { flexGrow: 1, flexShrink: 1 }, richText(b, fs, 500, ink, paper, 1.2)));
+    })
+  );
+}
+
 export type TwoToneOpts = {
   palette: Palette;
   format: DesignFormat;
@@ -87,7 +113,8 @@ export function twoToneTree(slide: CardSlide, o: TwoToneOpts): Node {
   const bottom = story ? 360 : pad;
   const innerW = W - pad * 2 - (story ? 60 : 0);
   const base = slide.kind === "cover" ? (o.format === "square" ? 112 : 132) : o.format === "square" ? 84 : 100;
-  const tSize = fit(slide.title, story ? base + 28 : base);
+  const bullets = slide.bullets?.filter((b) => b.trim()).slice(0, 10) ?? [];
+  const tSize = fit(slide.title, Math.round((story ? base + 28 : base) * (bullets.length ? 0.78 : 1)));
   const bodySize = o.format === "square" ? 36 : story ? 48 : 42;
 
   const header = h(
@@ -100,10 +127,11 @@ export function twoToneTree(slide: CardSlide, o: TwoToneOpts): Node {
   const quote = slide.kind === "quote" ? [h("div", { fontSize: 200, fontWeight: 900, color: ink, lineHeight: 0.7, height: 120 }, "“")] : [];
   const middle = h(
     "div",
-    { flexDirection: "column", gap: 30, width: innerW },
+    { flexDirection: "column", gap: bullets.length ? 26 : 30, width: innerW },
     ...quote,
     richText(slide.title, tSize, 900, ink, paper, 1.12),
-    ...(slide.body ? [richText(slide.body, bodySize, 400, ink, paper, 1.3)] : [])
+    ...(slide.body ? [richText(slide.body, bullets.length ? Math.round(bodySize * 0.85) : bodySize, 400, ink, paper, 1.3)] : []),
+    ...(bullets.length ? [bulletList(bullets, o.format === "square" ? 32 : story ? 44 : 38, ink, paper, innerW)] : [])
   );
 
   const footer = h(

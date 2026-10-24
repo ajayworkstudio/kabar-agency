@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { env } from "@/lib/env";
+import { slidesToText } from "@/lib/slides";
 import type { DraftContent, FactCheck } from "@/lib/types";
 
 const anthropic = () => new Anthropic({ apiKey: env.anthropicKey });
@@ -14,6 +15,7 @@ const Slide = z.object({
   kicker: z.string().optional(),
   title: z.string(),
   body: z.string().optional(),
+  bullets: z.array(z.string()).max(8).optional(),
 });
 
 const Draft = z.object({
@@ -56,11 +58,11 @@ const draftToolSchema = {
     },
     carousel: {
       type: "array",
-      description: "4–7 slide. Slide 1 kind=cover (hook besar). Tengah kind=point/quote (satu fakta per slide, title ≤ 10 kata, body ≤ 28 kata). Terakhir kind=closing berisi ajakan diskusi.",
+      description: "4–7 slide. Slide 1 kind=cover (hook besar). Tengah kind=point/quote (satu fakta per slide, title ≤ 10 kata, body ≤ 28 kata). Terakhir kind=closing berisi ajakan diskusi. Jika berita memuat daftar sebanding (harga per varian, spesifikasi, jadwal, susunan pemain, klasemen), taruh di bullets format 'Label: nilai' (maks 8).",
       items: {
         type: "object",
         required: ["kind", "title"],
-        properties: { kind: { type: "string", enum: ["cover", "point", "quote", "closing"] }, kicker: { type: "string" }, title: { type: "string" }, body: { type: "string" } },
+        properties: { kind: { type: "string", enum: ["cover", "point", "quote", "closing"] }, kicker: { type: "string" }, title: { type: "string" }, body: { type: "string" }, bullets: { type: "array", items: { type: "string" }, description: "Opsional. Baris daftar, mis. 'iPhone Duo 256 GB: Rp 45.678.910'." } },
       },
     },
     instagramCaption: { type: "string", description: "Hook di baris pertama, 3–6 baris ringkas, pertanyaan pemantik komentar, baris 'Sumber: …', lalu hashtag." },
@@ -258,7 +260,7 @@ export type StudioSummary = { title: string; text: string; caption: string; hash
 
 const StudioOut = z.object({
   title: z.string(),
-  slides: z.array(z.object({ kind: z.enum(["cover", "point", "quote", "closing"]), kicker: z.string().optional(), title: z.string(), body: z.string().optional() })).min(1),
+  slides: z.array(z.object({ kind: z.enum(["cover", "point", "quote", "closing"]), kicker: z.string().optional(), title: z.string(), body: z.string().optional(), bullets: z.array(z.string()).max(8).optional() })).min(1),
   caption: z.string(),
   hashtags: z.array(z.string()).default([]),
   outlet: z.string().optional(),
@@ -278,6 +280,7 @@ export async function summarizeForStudio(
     fmt.quote ? `Include one "quote" slide ONLY if the article contains a direct quote: title = the quote (translated), body = speaker name and role.` : `No quote slide.`,
     fmt.closing === "question" ? `Last slide kind "closing": a question that invites comments.` : fmt.closing === "follow" ? `Last slide kind "closing": a follow call-to-action for ${env.brandHandle}.` : `No closing slide; fill the rest with "point" slides.`,
     `"point" slides: title ≤ 70 chars, body ≤ 160 chars, one fact each, in story order.${fmt.labels === "numbered" ? ` kicker = a 1–3 word label (e.g. "The crowd").` : " No kicker."}`,
+    `When the article lists comparable items (prices per variant, specs, schedules, line-ups, rankings, results), put them on a "point" slide as bullets, each "Label: value" (e.g. "iPhone Duo 256 GB: Rp 45.678.910"), max 8 per slide, values copied exactly. Keep that slide's body short or empty.`,
     `Mark the single most striking word or number in a title with *asterisks* (max one per slide).`,
     `Use ONLY facts in the article. Attribute claims (e.g. "per the promoter"). Keep numbers exact. Neutral on politics.`,
     `caption: 2–4 short lines + a comment prompt, no hashtags inside. hashtags: 4–7 relevant tags with #. outlet: the publication name if identifiable.`,
@@ -296,7 +299,7 @@ export async function summarizeForStudio(
         type: "object",
         properties: {
           title: { type: "string" },
-          slides: { type: "array", items: { type: "object", properties: { kind: { type: "string", enum: ["cover", "point", "quote", "closing"] }, kicker: { type: "string" }, title: { type: "string" }, body: { type: "string" } }, required: ["kind", "title"] } },
+          slides: { type: "array", items: { type: "object", properties: { kind: { type: "string", enum: ["cover", "point", "quote", "closing"] }, kicker: { type: "string" }, title: { type: "string" }, body: { type: "string" }, bullets: { type: "array", items: { type: "string" } } }, required: ["kind", "title"] } },
           caption: { type: "string" },
           hashtags: { type: "array", items: { type: "string" } },
           outlet: { type: "string" },
@@ -308,9 +311,7 @@ export async function summarizeForStudio(
   });
   const block = res.content.find((b) => b.type === "tool_use");
   const out = StudioOut.parse(block && "input" in block ? block.input : null);
-  const text = out.slides
-    .map((s) => `${s.kicker && s.kind !== "cover" ? `#${s.kicker}\n` : ""}${s.kind === "quote" ? "> " : ""}${s.title.trim()}${s.body ? `\n${s.body.trim()}` : ""}`)
-    .join("\n\n");
+  const text = slidesToText(out.slides);
   const credit = out.outlet ? `${lang === "en" ? "Source" : "Sumber"}: ${out.outlet}` : "";
   return { title: out.title, text, caption: out.caption, hashtags: out.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)), credit };
 }

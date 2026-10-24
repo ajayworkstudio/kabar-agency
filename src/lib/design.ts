@@ -8,6 +8,7 @@ export const SlideInput = z.object({
   kicker: z.string().max(40).optional(),
   title: z.string().trim().min(1, "judul slide kosong").max(220),
   body: z.string().max(400).optional(),
+  bullets: z.array(z.string().trim().min(1).max(140)).max(10).optional(),
 });
 
 export const PaletteInput = z.object({ bg: hex, fg: hex });

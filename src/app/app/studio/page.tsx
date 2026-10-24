@@ -5,7 +5,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Topbar } from "@/components/Shell";
 import { Avatar, CATEGORY, I, TARGETS } from "@/components/ui";
 import { useWorkspace } from "@/components/workspace";
-import { articleToText, slidesFromText, storyToText, type BriefArticle } from "@/lib/slides";
+import { articleToText, BULLET, slidesFromText, slidesToText, storyToText, type BriefArticle } from "@/lib/slides";
 import { DEFAULT_FORMAT, summarizeRaw, type SummaryFormat } from "@/lib/summarize";
 
 type StudioAI = { title: string; text: string; caption: string; hashtags: string[]; credit: string };
@@ -129,6 +129,8 @@ function Studio() {
 
 
   const applyText = (t: string) => { setRaw(t); setSlides(slidesFromText(t)); };
+  // while typing in the bullets box, blank lines are kept — strip them before preview / save
+  const clean = useMemo(() => slides.map((x) => { const b = x.bullets?.map((y) => y.trim()).filter(Boolean); return { ...x, bullets: b?.length ? b : undefined }; }), [slides]);
   const setSlide = (i: number, patch: Partial<CardSlide>) => setSlides((ss) => ss.map((s, k) => (k === i ? { ...s, ...patch } : s)));
   const move = (i: number, d: -1 | 1) => setSlides((ss) => { const n = [...ss]; const j = i + d; if (j < 0 || j >= n.length) return n; [n[i], n[j]] = [n[j], n[i]]; return n; });
 
@@ -136,7 +138,7 @@ function Studio() {
     if (!slides.length) return say("Tambahkan minimal 1 slide");
     setBusy(true);
     const r = await call<{ id: string }>("/api/design", "POST", {
-      agent_id: designer?.id ?? null, title, category, slides, palette, format, caption, sourceCredit: credit, targets,
+      agent_id: designer?.id ?? null, title, category, slides: clean, palette, format, caption, sourceCredit: credit, targets,
       hashtags: tags.split(/\s+/).filter(Boolean),
     }, "Desain dikirim ke Inbox untuk disetujui");
     setBusy(false);
@@ -218,7 +220,7 @@ function Studio() {
             </div>
           )}
           <div className="seg" style={{ marginBottom: 6 }}>
-            <button aria-pressed={mode === "text"} onClick={() => setMode("text")}>Tempel teks</button>
+            <button aria-pressed={mode === "text"} onClick={() => { if (mode === "slides") setRaw(slidesToText(slides.map((x) => ({ ...x, bullets: x.bullets?.filter((b) => b.trim()) })))); setMode("text"); }}>Tempel teks</button>
             <button aria-pressed={mode === "slides"} onClick={() => setMode("slides")}>Edit per slide ({slides.length})</button>
           </div>
 
@@ -227,7 +229,8 @@ function Studio() {
               <textarea className="textarea mono" rows={14} value={raw} onChange={(e) => applyText(e.target.value)} aria-label="Teks desain" style={{ fontSize: 12.5 }} />
               <div className="faint" style={{ fontSize: 12, lineHeight: 1.6, marginTop: 6 }}>
                 Baris kosong = slide baru · baris pertama = judul, sisanya isi · <span className="mono">#Label</span> = label kecil ·{" "}
-                <span className="mono">&gt; teks</span> = kutipan · <span className="mono">*kata*</span> = sorotan blok warna
+                <span className="mono">&gt; teks</span> = kutipan · <span className="mono">*kata*</span> = sorotan blok warna ·{" "}
+                <span className="mono">- Label: nilai</span> = poin / daftar harga
               </div>
             </>
           ) : (
@@ -246,6 +249,9 @@ function Studio() {
                   </div>
                   <textarea className="textarea" rows={2} placeholder="Judul — pakai *kata* untuk sorotan" value={s.title} onChange={(e) => setSlide(i, { title: e.target.value })} style={{ minHeight: 0 }} />
                   <textarea className="textarea" rows={2} placeholder="Isi (opsional)" value={s.body ?? ""} onChange={(e) => setSlide(i, { body: e.target.value || undefined })} style={{ minHeight: 0, marginTop: 6 }} />
+                  <textarea className="textarea" rows={Math.min(8, Math.max(2, (s.bullets?.length ?? 0) + 1))} placeholder={"Poin (opsional) — satu per baris\niPhone Duo 256 GB: Rp 45.678.910"} value={(s.bullets ?? []).join("\n")}
+                    onChange={(e) => { const b = e.target.value.split("\n").map((x) => x.replace(BULLET, "")); setSlide(i, { bullets: b.some((x) => x.trim()) ? b : undefined }); }}
+                    style={{ minHeight: 0, marginTop: 6 }} aria-label={`Poin slide ${i + 1}`} />
                 </div>
               ))}
               <button className="btn" onClick={() => setSlides((ss) => [...ss, { kind: "point", title: "Judul slide baru" }])}><I.plus size={14} /> Tambah slide</button>
@@ -299,7 +305,7 @@ function Studio() {
           </div>
         </div>
 
-        <Preview slides={slides} palette={palette} format={format} credit={credit} ratio={FORMATS.find((f) => f.id === format)!.ratio}
+        <Preview slides={clean} palette={palette} format={format} credit={credit} ratio={FORMATS.find((f) => f.id === format)!.ratio}
           caption={`${(caption.trim() || slides.map((s) => s.title.replace(/\*/g, "")).slice(0, 2).join(" — "))}${tags.trim() ? `\n\n${tags.trim()}` : ""}`} onCopied={() => say("Caption disalin")} />
       </div>
     </>
