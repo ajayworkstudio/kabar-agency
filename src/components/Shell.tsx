@@ -79,6 +79,17 @@ function Frame({ children }: { children: ReactNode }) {
         {error && <div className="demo-banner" style={{ background: "rgba(235,87,87,.1)", borderColor: "rgba(235,87,87,.3)" }}>{error}</div>}
         <MenuButtonContext.Provider value={() => setOpen(true)}>{children}</MenuButtonContext.Provider>
       </div>
+
+      {/* phone: bottom tab bar for the daily loop; everything else lives in the drawer */}
+      <nav className="tabbar" aria-label="Navigasi utama">
+        <Link href="/app" aria-current={is("/app") ? "page" : undefined}><I.spark size={20} /><span>Studio</span></Link>
+        <Link href="/app/news" aria-current={is("/app/news") ? "page" : undefined}><I.news size={20} /><span>Berita</span></Link>
+        <Link href="/app/inbox" aria-current={is("/app/inbox") ? "page" : undefined}>
+          <span className="tab-ico"><I.inbox size={20} />{inboxCount > 0 && <b>{inboxCount > 9 ? "9+" : inboxCount}</b>}</span><span>Siap posting</span>
+        </Link>
+        <Link href="/app/published" aria-current={is("/app/published") ? "page" : undefined}><I.send size={20} /><span>Diposting</span></Link>
+        <button onClick={() => setOpen(true)} aria-label="Menu lainnya"><I.menu size={20} /><span>Lainnya</span></button>
+      </nav>
     </div>
   );
 }

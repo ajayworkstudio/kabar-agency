@@ -149,7 +149,7 @@ function Studio() {
   return (
     <>
       <Topbar title="Studio desain">
-        {designer && <span className="row muted"><Avatar name={designer.name} color={designer.color} size={18} /> {designer.name} siap mendesain</span>}
+        {designer && <span className="row muted"><Avatar name={designer.name} color={designer.color} size={18} /> <span className="hide-sm">{designer.name} siap mendesain</span></span>}
       </Topbar>
       <div className="studio">
         <div className="studio-form">
@@ -327,9 +327,11 @@ function Contrast({ bg, fg }: { bg: string; fg: string }) {
 function Preview({ slides, palette, format, credit, ratio, caption, onCopied }: { slides: CardSlide[]; palette: { bg: string; fg: string }; format: DesignFormat; credit: string; ratio: string; caption: string; onCopied: () => void }) {
   const [urls, setUrls] = useState<(string | null)[]>([]);
   const [loading, setLoading] = useState(false);
+  const [active, setActive] = useState(0);
   const key = useMemo(() => JSON.stringify({ slides, palette, format, credit }), [slides, palette, format, credit]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const live = useRef<string[]>([]);
+  const track = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -355,38 +357,82 @@ function Preview({ slides, palette, format, credit, ratio, caption, onCopied }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
+  useEffect(() => { if (active > slides.length - 1) go(Math.max(0, slides.length - 1)); }, [slides.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // which slide is centred in the swipe track
+  function onScroll() {
+    const el = track.current;
+    if (!el) return;
+    const items = Array.from(el.children) as HTMLElement[];
+    const mid = el.scrollLeft + el.clientWidth / 2;
+    let best = 0;
+    items.forEach((c, i) => { if (Math.abs(c.offsetLeft + c.offsetWidth / 2 - mid) < Math.abs(items[best].offsetLeft + items[best].offsetWidth / 2 - mid)) best = i; });
+    if (best !== active) setActive(best);
+  }
+  function go(i: number) {
+    const el = track.current;
+    const c = el?.children[i] as HTMLElement | undefined;
+    if (!el || !c) return;
+    el.scrollTo({ left: c.offsetLeft - (el.clientWidth - c.offsetWidth) / 2, behavior: "smooth" });
+    setActive(i);
+  }
+
+  const name = (i: number) => `desain-${String(i + 1).padStart(2, "0")}.png`;
   function downloadAll() {
     urls.forEach((u, i) => {
       if (!u) return;
       const a = document.createElement("a");
       a.href = u;
-      a.download = `desain-${String(i + 1).padStart(2, "0")}.png`;
+      a.download = name(i);
       document.body.appendChild(a);
       a.click();
       a.remove();
     });
   }
+  const copy = () => navigator.clipboard.writeText(caption).then(onCopied);
 
   return (
     <div className="studio-preview">
-      <div className="row" style={{ marginBottom: 10 }}>
-        <span className="muted">{slides.length} slide {loading && "· merender…"}</span>
+      <div className="row preview-head">
+        <span className="muted">{slides.length ? `${active + 1} / ${slides.length}` : "0 slide"} {loading && <span className="faint">· merender…</span>}</span>
+        {urls[active] && <a className="btn ghost sm one-dl" href={urls[active]!} download={name(active)}>↓ Slide ini</a>}
         <span className="grow" />
-        <button className="btn sm" onClick={() => navigator.clipboard.writeText(caption).then(onCopied)}>Salin caption</button>
-        <button className="btn sm primary" disabled={!urls.some(Boolean)} onClick={downloadAll}>Unduh semua PNG</button>
+        <button className="btn sm" onClick={copy}>Salin caption</button>
+        <button className="btn sm primary" disabled={!urls.some(Boolean)} onClick={downloadAll}>Unduh semua</button>
       </div>
-      <div className={`preview-grid ${format}`}>
+
+      <div className={`swipe ${format}`}>
+        <button className="swipe-nav prev" onClick={() => go(active - 1)} disabled={active === 0} aria-label="Slide sebelumnya">‹</button>
+        <div className="swipe-track" ref={track} onScroll={onScroll}>
+          {slides.map((_, i) => (
+            <div key={i} className="swipe-item" aria-current={i === active}>
+              <div className="preview-frame" style={{ aspectRatio: ratio, background: palette.bg }}>
+                {urls[i] ? <img src={urls[i]!} alt={`Slide ${i + 1}`} draggable={false} /> : <div className="frame-loading" />}
+              </div>
+            </div>
+          ))}
+        </div>
+        <button className="swipe-nav next" onClick={() => go(active + 1)} disabled={active >= slides.length - 1} aria-label="Slide berikutnya">›</button>
+      </div>
+
+      {slides.length > 1 && (
+        <div className="dots" role="tablist">
+          {slides.map((_, i) => <button key={i} role="tab" aria-selected={i === active} aria-label={`Ke slide ${i + 1}`} onClick={() => go(i)} />)}
+        </div>
+      )}
+
+      <div className="thumbs">
         {slides.map((_, i) => (
-          <div key={i} className="preview-item">
-            <div className="preview-frame" style={{ aspectRatio: ratio, background: palette.bg }}>
-              {urls[i] && <img src={urls[i]!} alt={`Slide ${i + 1}`} />}
-            </div>
-            <div className="row" style={{ marginTop: 4, fontSize: 12 }}>
-              <span className="faint">Slide {i + 1}</span><span className="grow" />
-              {urls[i] && <a className="faint" href={urls[i]!} download={`desain-${String(i + 1).padStart(2, "0")}.png`}>Unduh</a>}
-            </div>
-          </div>
+          <button key={i} className="thumb" aria-pressed={i === active} onClick={() => go(i)} style={{ aspectRatio: ratio, background: palette.bg }} aria-label={`Slide ${i + 1}`}>
+            {urls[i] && <img src={urls[i]!} alt="" />}
+          </button>
         ))}
+      </div>
+
+      {/* phone: big thumb-reachable actions */}
+      <div className="mobile-actions">
+        <button className="btn" onClick={copy}>Salin caption</button>
+        <button className="btn primary" disabled={!urls.some(Boolean)} onClick={downloadAll}>Unduh {slides.length} slide</button>
       </div>
     </div>
   );
