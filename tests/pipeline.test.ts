@@ -95,3 +95,24 @@ describe("feed parsing", () => {
     expect(itemsFromFeed(tr, { id: "trends-id", outlet: "Google Trends", url: "", kind: "trends" }).trends).toEqual([{ term: "timnas indonesia", traffic: "200K+" }]);
   });
 });
+
+describe("design studio text parser", () => {
+  it("splits pasted text into cover / point / quote / closing slides", async () => {
+    const { slidesFromText } = await import("../src/lib/slides");
+    const s = slidesFromText("#Ekonomi\nHarga *beras* naik\nIsi pembuka\n\nPoin satu\nDetail\n\n#Kata pedagang\n> Pasokan berkurang\nPedagang Johar\n\nDi daerahmu naik?");
+    expect(s.map((x) => x.kind)).toEqual(["cover", "point", "quote", "closing"]);
+    expect(s[0]).toMatchObject({ kicker: "Ekonomi", title: "Harga *beras* naik", body: "Isi pembuka" });
+    expect(s[2]).toMatchObject({ kicker: "Kata pedagang", title: "Pasokan berkurang" });
+  });
+});
+
+describe("two-colour renderer", () => {
+  it("renders every format with exactly the chosen palette", async () => {
+    const { renderCard } = await import("../src/pipeline/cards");
+    for (const format of ["post", "square", "story"] as const) {
+      const png = await renderCard({ kind: "cover", title: "Harga *beras* naik" }, { category: "umum", brandName: "X", brandHandle: "@x", sourceCredit: "", index: 0, total: 3, format, palette: { bg: "#FFD400", fg: "#111111" } });
+      expect(png.byteLength).toBeGreaterThan(5000);
+      expect(Buffer.from(png).subarray(1, 4).toString()).toBe("PNG");
+    }
+  });
+});

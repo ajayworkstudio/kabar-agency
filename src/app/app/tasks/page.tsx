@@ -11,7 +11,7 @@ export default function Page() {
   return <Suspense><Tasks /></Suspense>;
 }
 
-const KIND: Record<string, string> = { draft: "Draft konten", research: "Riset", report: "Laporan", manual: "Manual" };
+const KIND: Record<string, string> = { draft: "Draft konten", design: "Desain", research: "Riset", report: "Laporan", manual: "Manual" };
 const FILTERS = { active: ["in_review", "in_progress", "todo"], backlog: ["backlog"], closed: ["done", "failed", "canceled"], all: STATUS_ORDER } as const;
 
 function Tasks() {
@@ -114,7 +114,7 @@ function TaskModal({ t, onClose }: { t: Task; onClose: () => void }) {
   const { ws, call, agent } = useWorkspace();
   const a = agent(t.agent_id);
   const patch = (body: Record<string, unknown>) => call(`/api/tasks/${t.id}`, "PATCH", body, "Tugas diperbarui");
-  const lockedStatus = t.kind === "draft";
+  const lockedStatus = t.kind === "draft" || t.kind === "design";
 
   return (
     <Modal title={<span className="muted">AGN-{t.number} · {KIND[t.kind]}</span>} onClose={onClose}>
@@ -146,7 +146,7 @@ function TaskModal({ t, onClose }: { t: Task; onClose: () => void }) {
 
       {t.error && <div className="note bad">{t.error}</div>}
       {t.kind === "research" && <ResearchResult t={t} />}
-      {t.kind === "draft" && t.draft_id && (
+      {(t.kind === "draft" || t.kind === "design") && t.draft_id && (
         <Link href={`/app/inbox?i=d:${t.draft_id}`} className="btn" style={{ marginTop: 6 }}><I.inbox size={14} /> Buka draft di Inbox</Link>
       )}
       {t.kind === "report" && <Link href="/app/reports" className="btn" style={{ marginTop: 6 }}><I.report size={14} /> Buka laporan</Link>}

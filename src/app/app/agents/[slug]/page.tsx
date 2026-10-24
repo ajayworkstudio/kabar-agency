@@ -54,12 +54,18 @@ export default function AgentPage() {
             <div className="wrap-row" style={{ marginTop: 10 }}>
               <span className={`tag ${a.status === "active" ? "ok" : ""}`}>{a.status === "active" ? "Aktif" : "Nonaktif"}</span>
               {a.platforms.map((p) => <span key={p} className="tag">{targetLabel(p)}</span>)}
-              <span className="tag">{a.categories.length ? a.categories.map((c) => CATEGORY[c]).join(", ") : "Semua kategori"}</span>
+              <span className="tag">{a.kind === "designer" ? "Desainer · 2 warna" : a.categories.length ? a.categories.map((c) => CATEGORY[c]).join(", ") : "Semua kategori"}</span>
             </div>
           </div>
           <div className="wrap-row">
-            <button className="btn" disabled={!!busy || a.status !== "active"} onClick={() => act("draft")}><I.bolt size={14} /> {busy === "draft" ? "Menulis…" : "Cari & tulis draft sekarang"}</button>
-            <button className="btn" disabled={!!busy} onClick={() => act("report")}><I.report size={14} /> {busy === "report" ? "Menyusun…" : "Minta laporan sekarang"}</button>
+            {a.kind === "designer" ? (
+              <Link href="/app/studio" className="btn primary"><I.spark size={14} /> Buka Studio desain</Link>
+            ) : (
+              <>
+                <button className="btn" disabled={!!busy || a.status !== "active"} onClick={() => act("draft")}><I.bolt size={14} /> {busy === "draft" ? "Menulis…" : "Cari & tulis draft sekarang"}</button>
+                <button className="btn" disabled={!!busy} onClick={() => act("report")}><I.report size={14} /> {busy === "report" ? "Menyusun…" : "Minta laporan sekarang"}</button>
+              </>
+            )}
             <button className="btn ghost" onClick={toggleStatus}>{a.status === "active" ? "Nonaktifkan" : "Aktifkan"}</button>
           </div>
         </div>
@@ -83,6 +89,7 @@ export default function AgentPage() {
             <div className="card">
               <div className="card-h">Aturan kerja</div>
               <div className="card-b props" style={{ margin: 0 }}>
+                <span>Jenis</span><span>{a.kind === "designer" ? "Desainer — bekerja dari teks admin di Studio" : "Penulis berita — mencari & menulis otomatis"}</span>
                 <span>Min. outlet</span><span>{a.settings.minSources} (politik {a.settings.minSourcesPolitics})</span>
                 <span>Kuota draft</span><span>{a.settings.maxDraftsPerDay} / hari</span>
                 <span>Laporan harian</span><span>{String(a.settings.reportHour).padStart(2, "0")}.00 WIB</span>

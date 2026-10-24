@@ -12,6 +12,8 @@
 | `/app/reports` **Laporan harian** | Laporan berita terbaru dari tiap karyawan, setiap pagi |
 | `/app/news` · `/app/published` · `/app/settings` | Berita & kesehatan sumber · konten terbit & metrik · koneksi & jalankan manual |
 
+**Studio desain** (`/app/studio`) — untuk konten yang datanya kamu cari sendiri. Tempel teks, pilih palet **2 warna** dan format (4:5, 1:1, 9:16); karyawan desainer (**Dita**, dibuat oleh `003_designer.sql`) langsung merender kartu tipografi yang bisa diunduh sebagai PNG atau dikirim ke Inbox untuk disetujui & diposting. Tidak memakai AI, jadi tidak butuh saldo Anthropic. Tandai kata dengan `*bintang*` untuk sorotan blok warna.
+
 Karyawan pertama, **Raka (Editor Berita Sosial Media)**, otomatis dibuat oleh `supabase/migrations/002_agency.sql`.
 
 Cara kerja tiap karyawan:
@@ -71,7 +73,7 @@ Samples of the generated design are in `docs/samples/` (cards + `sample.mp4`).
 ## Setup (≈1 hour, most of it waiting on platform approvals)
 
 ### 1. Supabase
-1. Create a project → **SQL Editor** → run `supabase/migrations/001_init.sql`, then `supabase/migrations/002_agency.sql`.
+1. Create a project → **SQL Editor** → run `supabase/migrations/001_init.sql`, then `002_agency.sql`, then `003_designer.sql`.
 2. Copy the project URL and the **service_role** key (Settings → API).
 
 ### 2. Local test

@@ -65,7 +65,7 @@ export async function renderVideo(draft: DraftContent, brand: { name: string; ha
           : i === scenes.length - 1
             ? { kind: "closing", title: sc.onScreen }
             : { kind: "point", title: sc.onScreen },
-        { category: draft.category, brandName: brand.name, brandHandle: brand.handle, sourceCredit: draft.sourceCredit, index: i, total: 1, format: "story" }
+        { category: draft.category, brandName: brand.name, brandHandle: brand.handle, sourceCredit: draft.sourceCredit, index: i, total: 1, format: "story", palette: draft.design?.palette ?? null }
       )
     );
 

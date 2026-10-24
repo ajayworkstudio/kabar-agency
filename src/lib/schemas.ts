@@ -4,6 +4,7 @@ import { ALL_TARGETS } from "@/pipeline/approve";
 export const AgentInput = z.object({
   name: z.string().trim().min(2).max(40),
   role: z.string().trim().min(2).max(80),
+  kind: z.enum(["writer", "designer"]).optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   status: z.enum(["active", "paused"]).optional(),
   platforms: z.array(z.enum(ALL_TARGETS)).optional(),

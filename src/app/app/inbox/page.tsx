@@ -24,8 +24,8 @@ function Inbox() {
 
   const items: Item[] = [
     ...ws.drafts.filter((d) => d.status === "pending" || d.status === "failed").map((d) => ({
-      key: `d:${d.id}`, kind: "draft" as const, title: d.hook, at: d.created_at, agentId: d.agent_id, color: catColor(d.content.category), unread: d.status === "pending",
-      sub: d.status === "failed" ? `Gagal terbit · ${d.error ?? ""}` : `Draft siap disetujui · ${d.stories?.outlet_count ?? "?"} outlet · ${d.fact_check?.verdict === "pass" ? "lolos cek fakta" : d.fact_check?.verdict === "warn" ? "ada catatan" : "perlu dicek"}`,
+      key: `d:${d.id}`, kind: "draft" as const, title: d.hook, at: d.created_at, agentId: d.agent_id, color: d.content.design ? d.content.design.palette.bg : catColor(d.content.category), unread: d.status === "pending",
+      sub: d.status === "failed" ? `Gagal terbit · ${d.error ?? ""}` : d.content.design ? `Desain dari Studio · ${d.card_urls.length} slide · siap disetujui` : `Draft siap disetujui · ${d.stories?.outlet_count ?? "?"} outlet · ${d.fact_check?.verdict === "pass" ? "lolos cek fakta" : d.fact_check?.verdict === "warn" ? "ada catatan" : "perlu dicek"}`,
     })),
     ...ws.tasks.filter((t) => t.kind === "research" && t.status === "in_review").map((t) => ({
       key: `t:${t.id}`, kind: "research" as const, title: t.title, at: t.finished_at ?? t.started_at ?? t.created_at, agentId: t.agent_id, color: "var(--accent)", unread: true,

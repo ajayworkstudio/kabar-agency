@@ -53,7 +53,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const merged = { ...(d.content as DraftContent), ...(a.content as Partial<DraftContent>) } as DraftContent;
   const update: Record<string, unknown> = { content: merged, hook: merged.hook, updated_at: new Date().toISOString() };
   if (a.content.carousel || a.content.sourceCredit || a.content.category) {
-    const pngs = await renderCarousel(merged.carousel, { category: merged.category, brandName: env.brandName, brandHandle: env.brandHandle, sourceCredit: merged.sourceCredit });
+    const pngs = await renderCarousel(
+      merged.carousel,
+      { category: merged.category, brandName: env.brandName, brandHandle: env.brandHandle, sourceCredit: merged.sourceCredit, palette: merged.design?.palette ?? null },
+      merged.design?.format === "square" ? "square" : "post"
+    );
     const v = Date.now();
     update.card_urls = await Promise.all(pngs.map((p, i) => uploadMedia(`drafts/${id}/card-${i + 1}-${v}.png`, p, "image/png")));
   }

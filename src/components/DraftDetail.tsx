@@ -38,7 +38,11 @@ export default function DraftDetail({ d }: { d: Draft }) {
     <div className="detail">
       <div className="wrap-row">
         <CatTag c={c.category} />
-        <span className="tag">{d.stories?.outlet_count ?? "?"} outlet</span>
+        {c.design ? (
+          <span className="tag"><span className="dot" style={{ background: c.design.palette.bg, outline: "1px solid var(--line-2)" }} /><span className="dot" style={{ background: c.design.palette.fg, outline: "1px solid var(--line-2)" }} /> Desain 2 warna · {c.design.format}</span>
+        ) : (
+          <span className="tag">{d.stories?.outlet_count ?? "?"} outlet</span>
+        )}
         {fc && <span className={`tag ${fc.verdict === "pass" ? "ok" : fc.verdict === "warn" ? "warn" : "bad"}`}>{fc.verdict === "pass" ? "Lolos cek fakta" : fc.verdict === "warn" ? "Ada catatan fakta" : "Cek fakta gagal"}</span>}
         {c.sensitivity === "high" && <span className="tag bad">Sensitif</span>}
         {d.status !== "pending" && <span className="tag">{d.status === "scheduled" && d.scheduled_for ? `Terjadwal ${wib(d.scheduled_for)}` : d.status}</span>}
@@ -49,7 +53,7 @@ export default function DraftDetail({ d }: { d: Draft }) {
       <div className="props">
         <span>Ditulis oleh</span>
         <span className="row">{a ? <><Avatar name={a.name} color={a.color} size={18} /> {a.name}</> : "—"} <span className="faint">· {ago(d.created_at)} lalu</span></span>
-        <span>Sumber</span><span>{c.sourceCredit.replace(/^Sumber:\s*/, "")}</span>
+        <span>Sumber</span><span>{c.sourceCredit.replace(/^Sumber:\s*/, "") || "—"}</span>
         <span>Platform</span>
         <span className="chips">
           {TARGETS.map((t) => (
@@ -69,10 +73,11 @@ export default function DraftDetail({ d }: { d: Draft }) {
         </div>
       )}
 
-      <details className="fold" style={{ marginTop: 14 }}>
+      {c.design && <div className="note" style={{ marginTop: 10 }}>Konten manual dari Studio desain — tidak melewati cek fakta otomatis. Pastikan isinya sudah benar sebelum disetujui.</div>}
+      {!c.design && <details className="fold" style={{ marginTop: 14 }}>
         <summary>Fakta yang dipakai · {c.keyFacts.length}</summary>
         <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>{c.keyFacts.map((f, i) => <li key={i} style={{ margin: "4px 0" }}>{f.claim} <span className="muted">— {f.sources.join(", ")}</span></li>)}</ul>
-      </details>
+      </details>}
 
       <details className="fold">
         <summary>Edit teks {dirty && <span className="tag warn">belum disimpan</span>}</summary>

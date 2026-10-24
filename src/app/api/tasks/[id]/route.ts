@@ -22,7 +22,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { data: task } = await db().from("tasks").select("kind, draft_id").eq("id", id).single();
   if (!task) return NextResponse.json({ error: "not found" }, { status: 404 });
   // draft tasks follow their draft — change those through the approval inbox instead
-  if (task.kind === "draft" && parsed.data.status) return NextResponse.json({ error: "Status task draft mengikuti persetujuan di Inbox" }, { status: 409 });
+  if ((task.kind === "draft" || task.kind === "design") && parsed.data.status) return NextResponse.json({ error: "Status task draft mengikuti persetujuan di Inbox" }, { status: 409 });
 
   const patch: Record<string, unknown> = { ...parsed.data };
   const now = new Date().toISOString();

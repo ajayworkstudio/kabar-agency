@@ -59,6 +59,11 @@ describe("admin pages render with demo data", () => {
     expect(await render("../src/app/app/published/page", { path: "/app/published" })).toContain("postingan");
     expect(await render("../src/app/app/settings/page", { path: "/app/settings" })).toContain("Jalankan manual");
   });
+  it("design studio", async () => {
+    const html = await render("../src/app/app/studio/page", { path: "/app/studio" });
+    expect(html).toContain("Palet 2 warna");
+    expect(html).toMatch(/Dita(<!-- -->)? siap mendesain/);
+  });
   it("shell sidebar", () => {
     const html = renderToString(<Shell><div /></Shell>);
     expect(html).toContain("Inbox");

@@ -9,6 +9,7 @@ import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
 import type { Category } from "@/config/sources";
 import type { CardSlide } from "@/lib/types";
+import { SIZES, twoToneTree, type DesignFormat, type Palette } from "./twotone";
 
 type Node = { type: string; props: { style?: Record<string, unknown>; children?: unknown } & Record<string, unknown> };
 const h = (type: string, style: Record<string, unknown>, ...children: unknown[]): Node => ({
@@ -60,7 +61,9 @@ export type CardOpts = {
   sourceCredit: string;
   index: number;
   total: number;
-  format: "post" | "story"; // post = 1080×1350, story/video = 1080×1920
+  format: "post" | "story" | "square"; // post = 1080×1350, story/video = 1080×1920, square = 1080×1080
+  /** When set, render the two-colour designer style instead of the news theme. */
+  palette?: Palette | null;
 };
 
 function cardTree(slide: CardSlide, o: CardOpts): Node {
@@ -133,12 +136,15 @@ function cardTree(slide: CardSlide, o: CardOpts): Node {
 }
 
 export async function renderCard(slide: CardSlide, o: CardOpts): Promise<Uint8Array> {
-  const W = 1080, H = o.format === "story" ? 1920 : 1350;
-  const svg = await satori(cardTree(slide, o) as unknown as Parameters<typeof satori>[0], { width: W, height: H, fonts: await fonts() });
+  const { W, H } = SIZES[o.format as DesignFormat];
+  const tree = o.palette
+    ? twoToneTree(slide, { palette: o.palette, format: o.format, brandName: o.brandName, brandHandle: o.brandHandle, sourceCredit: o.sourceCredit, index: o.index, total: o.total })
+    : cardTree(slide, { ...o, format: o.format === "square" ? "post" : o.format });
+  const svg = await satori(tree as unknown as Parameters<typeof satori>[0], { width: W, height: H, fonts: await fonts() });
   const png = new Resvg(svg, { fitTo: { mode: "width", value: W } }).render().asPng();
   return new Uint8Array(png);
 }
 
-export async function renderCarousel(slides: CardSlide[], base: Omit<CardOpts, "index" | "total" | "format">, format: "post" | "story" = "post") {
+export async function renderCarousel(slides: CardSlide[], base: Omit<CardOpts, "index" | "total" | "format">, format: CardOpts["format"] = "post") {
   return Promise.all(slides.map((s, i) => renderCard(s, { ...base, index: i, total: slides.length, format })));
 }

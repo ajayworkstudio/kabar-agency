@@ -44,6 +44,8 @@ export type DraftContent = {
   hashtags: string[];
   sourceCredit: string;         // e.g. "Sumber: Antara, Detik, Tempo"
   sensitivity: "low" | "medium" | "high"; // high = politics/legal/tragedy → extra care
+  /** Present on drafts made in the design studio: two-colour palette + canvas format. */
+  design?: { palette: { bg: string; fg: string }; format: "post" | "square" | "story" } | null;
 };
 
 export type FactCheck = {

@@ -53,6 +53,7 @@ function Frame({ children }: { children: ReactNode }) {
         <div className="nav-group">Workspace</div>
         <Item href="/app/tasks" icon={<I.tasks />} label="Tugas" count={activeTasks} />
         <Item href="/app/agents" icon={<I.users />} label="Karyawan" count={ws?.agents.length} />
+        <Item href="/app/studio" icon={<I.spark />} label="Studio desain" />
         <Item href="/app/reports" icon={<I.report />} label="Laporan harian" />
         <Item href="/app/news" icon={<I.news />} label="Berita & sumber" />
         <Item href="/app/published" icon={<I.send />} label="Konten terbit" />

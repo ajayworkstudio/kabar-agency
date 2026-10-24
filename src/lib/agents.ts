@@ -12,6 +12,7 @@ export type Agent = {
   slug: string;
   name: string;
   role: string;
+  kind: "writer" | "designer";
   color: string;
   status: "active" | "paused";
   platforms: string[];
@@ -22,16 +23,17 @@ export type Agent = {
 };
 
 export type TaskStatus = "backlog" | "todo" | "in_progress" | "in_review" | "done" | "failed" | "canceled";
-export type TaskKind = "draft" | "research" | "report" | "manual";
+export type TaskKind = "draft" | "research" | "report" | "manual" | "design";
 
 export const DEFAULT_SETTINGS: AgentSettings = { minSources: 2, minSourcesPolitics: 3, maxDraftsPerDay: 12, reportHour: 7 };
 
 export function withDefaults(a: Agent): Agent {
-  return { ...a, settings: { ...DEFAULT_SETTINGS, ...(a.settings ?? {}) } };
+  return { ...a, kind: a.kind ?? "writer", settings: { ...DEFAULT_SETTINGS, ...(a.settings ?? {}) } };
 }
 
-export async function activeAgents(): Promise<Agent[]> {
-  const { data } = await db().from("agents").select("*").eq("status", "active").order("created_at");
+/** Active employees of one kind. News writers hunt stories; designers only work from admin text. */
+export async function activeAgents(kind: Agent["kind"] = "writer"): Promise<Agent[]> {
+  const { data } = await db().from("agents").select("*").eq("status", "active").eq("kind", kind).order("created_at");
   return ((data ?? []) as Agent[]).map(withDefaults);
 }
 

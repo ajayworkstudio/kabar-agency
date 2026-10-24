@@ -38,6 +38,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const agent = await load(id);
   if (!agent) return NextResponse.json({ error: "not found" }, { status: 404 });
   const { action } = (await req.json().catch(() => ({}))) as { action?: string };
+  if (agent.kind === "designer") return NextResponse.json({ error: "Karyawan desainer bekerja dari Studio desain" }, { status: 400 });
   if (action === "report") {
     const out = await logRun(`report:${agent.slug}`, async () => ({ summary: await writeDailyReport(agent) }));
     return NextResponse.json(out, { status: out.ok ? 200 : 500 });

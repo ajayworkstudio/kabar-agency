@@ -21,6 +21,7 @@ export function demoWorkspace() {
     slug: "raka",
     name: "Raka",
     role: "Editor Berita Sosial Media",
+    kind: "writer",
     color: "#5E6AD2",
     status: "active",
     platforms: ["instagram:carousel", "threads:text", "tiktok:video", "youtube:short"],
@@ -34,6 +35,26 @@ export function demoWorkspace() {
     ],
     settings: { minSources: 2, minSourcesPolitics: 3, maxDraftsPerDay: 12, reportHour: 7 },
     created_at: h(24 * 14),
+  };
+
+  const dita = {
+    id: "00000000-0000-4000-8000-000000000002",
+    slug: "dita",
+    name: "Dita",
+    role: "Desainer Konten",
+    kind: "designer",
+    color: "#E467B4",
+    status: "active",
+    platforms: ["instagram:carousel", "threads:carousel"],
+    categories: [],
+    responsibilities: [
+      "Mengubah teks dari admin menjadi desain carousel, post kotak, dan story",
+      "Hanya memakai 2 warna per desain sesuai palet yang dipilih admin",
+      "Menyorot kata penting yang ditandai *bintang* dengan blok warna terbalik",
+      "Mengirim hasil desain ke Inbox untuk disetujui sebelum terbit",
+    ],
+    settings: { minSources: 2, minSourcesPolitics: 3, maxDraftsPerDay: 30, reportHour: 7 },
+    created_at: h(5),
   };
 
   const sport = {
@@ -143,7 +164,7 @@ export function demoWorkspace() {
     demo: true,
     brand: { name: "Kabar Kilat", handle: "@kabarkilat.id" },
     config: { postSlots: ["07:00", "11:30", "16:00", "19:30", "21:00"], platforms: { instagram: true, threads: true, tiktok: true, tiktokAudited: false, youtube: true, telegram: true, videoWorker: true, voiceover: false, ai: true } },
-    agents: [raka],
+    agents: [raka, dita],
     tasks,
     reports,
     drafts,

@@ -3,13 +3,14 @@ import { useState } from "react";
 import type { Agent, AgentSettings } from "@/lib/agents";
 import { Avatar, CATEGORY, TARGETS } from "./ui";
 
-export type AgentDraft = Pick<Agent, "name" | "role" | "color" | "status" | "platforms" | "categories" | "responsibilities"> & { settings: AgentSettings };
+export type AgentDraft = Pick<Agent, "name" | "role" | "kind" | "color" | "status" | "platforms" | "categories" | "responsibilities"> & { settings: AgentSettings };
 
 export const COLORS = ["#5E6AD2", "#4CB782", "#E467B4", "#F2994A", "#4EA7FC", "#EB5757", "#A78BFA", "#26B5CE"];
 
 export const blankAgent = (): AgentDraft => ({
   name: "",
   role: "",
+  kind: "writer",
   color: COLORS[Math.floor(Math.random() * COLORS.length)],
   status: "active",
   platforms: ["instagram:carousel", "threads:text"],
@@ -42,11 +43,21 @@ export default function AgentForm({ value, onChange }: { value: AgentDraft; onCh
         ))}
       </div>
 
+      <label className="label">Jenis pekerjaan</label>
+      <div className="seg">
+        <button aria-pressed={v.kind === "writer"} onClick={() => set("kind", "writer")}>Penulis berita (cari & tulis otomatis)</button>
+        <button aria-pressed={v.kind === "designer"} onClick={() => set("kind", "designer")}>Desainer (dari teks admin)</button>
+      </div>
+
       <label className="label">Platform yang dipegang</label>
       <div className="chips">{TARGETS.map((t) => <button key={t.id} className="chip" aria-pressed={v.platforms.includes(t.id)} onClick={() => set("platforms", toggle(v.platforms, t.id))}>{t.label}</button>)}</div>
 
-      <label className="label">Kategori berita <span className="faint">(kosong = semua kategori)</span></label>
-      <div className="chips">{Object.entries(CATEGORY).map(([k, l]) => <button key={k} className="chip" aria-pressed={v.categories.includes(k)} onClick={() => set("categories", toggle(v.categories, k))}>{l}</button>)}</div>
+      {v.kind === "writer" && (
+        <>
+          <label className="label">Kategori berita <span className="faint">(kosong = semua kategori)</span></label>
+          <div className="chips">{Object.entries(CATEGORY).map(([k, l]) => <button key={k} className="chip" aria-pressed={v.categories.includes(k)} onClick={() => set("categories", toggle(v.categories, k))}>{l}</button>)}</div>
+        </>
+      )}
 
       <label className="label">Tanggung jawab</label>
       <ul className="resp" style={{ marginBottom: 8 }}>
@@ -63,12 +74,12 @@ export default function AgentForm({ value, onChange }: { value: AgentDraft; onCh
         <button className="btn sm" disabled={!newResp.trim()} onClick={() => { set("responsibilities", [...v.responsibilities, newResp.trim()]); setNewResp(""); }}>Tambah</button>
       </div>
 
-      <div className="grid g-4" style={{ gap: 8 }}>
+      {v.kind === "writer" && <div className="grid g-4" style={{ gap: 8 }}>
         <Num label="Min. outlet" v={v.settings.minSources} on={(x) => setS("minSources", x)} min={1} max={10} />
         <Num label="Min. outlet politik" v={v.settings.minSourcesPolitics} on={(x) => setS("minSourcesPolitics", x)} min={1} max={10} />
         <Num label="Maks. draft/hari" v={v.settings.maxDraftsPerDay} on={(x) => setS("maxDraftsPerDay", x)} min={0} max={100} />
         <Num label="Jam laporan (WIB)" v={v.settings.reportHour} on={(x) => setS("reportHour", x)} min={0} max={23} />
-      </div>
+      </div>}
     </div>
   );
 }

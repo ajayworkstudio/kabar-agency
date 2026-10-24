@@ -5,7 +5,7 @@ import type { Charts } from "@/lib/charts";
 import type { DraftContent, FactCheck } from "@/lib/types";
 
 export type Task = {
-  id: string; number: number; agent_id: string | null; kind: "draft" | "research" | "report" | "manual"; title: string; description: string | null;
+  id: string; number: number; agent_id: string | null; kind: "draft" | "research" | "report" | "manual" | "design"; title: string; description: string | null;
   status: string; priority: number; draft_id: string | null; payload: Record<string, unknown>;
   result: { query?: string; summary?: string; outlets?: number; articles?: { outlet: string; title: string; url: string; publishedAt: string | null }[] } | null;
   error: string | null; created_by: string; due_at: string | null; created_at: string; started_at: string | null; finished_at: string | null;

@@ -1,0 +1,250 @@
+"use client";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Topbar } from "@/components/Shell";
+import { Avatar, CATEGORY, I, TARGETS } from "@/components/ui";
+import { useWorkspace } from "@/components/workspace";
+import { slidesFromText } from "@/lib/slides";
+import type { CardSlide } from "@/lib/types";
+import { PALETTES, type DesignFormat } from "@/pipeline/twotone";
+
+const KINDS: { id: CardSlide["kind"]; label: string }[] = [
+  { id: "cover", label: "Cover" },
+  { id: "point", label: "Poin" },
+  { id: "quote", label: "Kutipan" },
+  { id: "closing", label: "Penutup" },
+];
+const FORMATS: { id: DesignFormat; label: string; ratio: string }[] = [
+  { id: "post", label: "Carousel 4:5", ratio: "4 / 5" },
+  { id: "square", label: "Kotak 1:1", ratio: "1 / 1" },
+  { id: "story", label: "Story 9:16", ratio: "9 / 16" },
+];
+
+const SAMPLE = `#Ekonomi
+Harga *beras* naik lagi di Jawa Tengah
+Ini yang perlu kamu tahu sebelum belanja minggu ini.
+
+#Fakta 1
+Naik Rp1.000/kg dalam *seminggu*
+Kenaikan tercatat di pasar-pasar Semarang, Solo, dan Purwokerto.
+
+#Kata pedagang
+> Pasokan dari petani mulai berkurang
+Pedagang Pasar Johar, Semarang.
+
+Di daerahmu *naik* juga?
+Ceritain di kolom komentar ya.`;
+
+export default function Studio() {
+  const { ws, call, say } = useWorkspace();
+  const designers = ws?.agents.filter((a) => a.kind === "designer") ?? [];
+  const [agentId, setAgentId] = useState<string | null>(null);
+  const [raw, setRaw] = useState(SAMPLE);
+  const [slides, setSlides] = useState<CardSlide[]>(() => slidesFromText(SAMPLE));
+  const [palette, setPalette] = useState({ bg: PALETTES[0].bg, fg: PALETTES[0].fg });
+  const [format, setFormat] = useState<DesignFormat>("post");
+  const [title, setTitle] = useState("Harga beras naik di Jateng");
+  const [category, setCategory] = useState("ekonomi");
+  const [caption, setCaption] = useState("");
+  const [tags, setTags] = useState("#hargaberas #jawatengah #infosemarang");
+  const [credit, setCredit] = useState("Sumber: Antara, Kompas");
+  const [targets, setTargets] = useState<string[]>(["instagram:carousel", "threads:carousel"]);
+  const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<"text" | "slides">("text");
+
+
+  const applyText = (t: string) => { setRaw(t); setSlides(slidesFromText(t)); };
+  const setSlide = (i: number, patch: Partial<CardSlide>) => setSlides((ss) => ss.map((s, k) => (k === i ? { ...s, ...patch } : s)));
+  const move = (i: number, d: -1 | 1) => setSlides((ss) => { const n = [...ss]; const j = i + d; if (j < 0 || j >= n.length) return n; [n[i], n[j]] = [n[j], n[i]]; return n; });
+
+  async function submit() {
+    if (!slides.length) return say("Tambahkan minimal 1 slide");
+    setBusy(true);
+    const r = await call<{ id: string }>("/api/design", "POST", {
+      agent_id: designer?.id ?? null, title, category, slides, palette, format, caption, sourceCredit: credit, targets,
+      hashtags: tags.split(/\s+/).filter(Boolean),
+    }, "Desain dikirim ke Inbox untuk disetujui");
+    setBusy(false);
+    if (r?.id) window.location.href = `/app/inbox?i=d:${r.id}`;
+  }
+
+  const designer = designers.find((d) => d.id === agentId) ?? designers[0];
+  return (
+    <>
+      <Topbar title="Studio desain">
+        {designer && <span className="row muted"><Avatar name={designer.name} color={designer.color} size={18} /> {designer.name} siap mendesain</span>}
+      </Topbar>
+      <div className="studio">
+        <div className="studio-form">
+          {designers.length === 0 && (
+            <div className="note warn" style={{ marginBottom: 12 }}>
+              Belum ada karyawan desainer. <Link href="/app/agents?hire=1" style={{ color: "var(--accent-2)" }}>Rekrut satu</Link> dan pilih jenis “Desainer”.
+            </div>
+          )}
+
+          <div className="seg" style={{ marginBottom: 6 }}>
+            <button aria-pressed={mode === "text"} onClick={() => setMode("text")}>Tempel teks</button>
+            <button aria-pressed={mode === "slides"} onClick={() => setMode("slides")}>Edit per slide ({slides.length})</button>
+          </div>
+
+          {mode === "text" ? (
+            <>
+              <textarea className="textarea mono" rows={14} value={raw} onChange={(e) => applyText(e.target.value)} aria-label="Teks desain" style={{ fontSize: 12.5 }} />
+              <div className="faint" style={{ fontSize: 12, lineHeight: 1.6, marginTop: 6 }}>
+                Baris kosong = slide baru · baris pertama = judul, sisanya isi · <span className="mono">#Label</span> = label kecil ·{" "}
+                <span className="mono">&gt; teks</span> = kutipan · <span className="mono">*kata*</span> = sorotan blok warna
+              </div>
+            </>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {slides.map((s, i) => (
+                <div key={i} className="card card-b" style={{ padding: 10 }}>
+                  <div className="row" style={{ marginBottom: 6 }}>
+                    <b style={{ width: 22 }}>{i + 1}</b>
+                    <select className="select" style={{ width: "auto", height: 26, padding: "0 6px" }} value={s.kind} onChange={(e) => setSlide(i, { kind: e.target.value as CardSlide["kind"] })} aria-label="Jenis slide">
+                      {KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+                    </select>
+                    <input className="input" style={{ height: 26, padding: "0 8px" }} placeholder="Label kecil" value={s.kicker ?? ""} onChange={(e) => setSlide(i, { kicker: e.target.value || undefined })} />
+                    <button className="btn ghost sm" onClick={() => move(i, -1)} aria-label="Naik">↑</button>
+                    <button className="btn ghost sm" onClick={() => move(i, 1)} aria-label="Turun">↓</button>
+                    <button className="btn ghost sm" onClick={() => setSlides((ss) => ss.filter((_, k) => k !== i))} aria-label="Hapus">✕</button>
+                  </div>
+                  <textarea className="textarea" rows={2} placeholder="Judul — pakai *kata* untuk sorotan" value={s.title} onChange={(e) => setSlide(i, { title: e.target.value })} style={{ minHeight: 0 }} />
+                  <textarea className="textarea" rows={2} placeholder="Isi (opsional)" value={s.body ?? ""} onChange={(e) => setSlide(i, { body: e.target.value || undefined })} style={{ minHeight: 0, marginTop: 6 }} />
+                </div>
+              ))}
+              <button className="btn" onClick={() => setSlides((ss) => [...ss, { kind: "point", title: "Judul slide baru" }])}><I.plus size={14} /> Tambah slide</button>
+            </div>
+          )}
+
+          <label className="label">Palet 2 warna</label>
+          <div className="palettes">
+            {PALETTES.map((p) => (
+              <button key={p.name} className="swatch" title={p.name} aria-pressed={palette.bg === p.bg && palette.fg === p.fg} onClick={() => setPalette({ bg: p.bg, fg: p.fg })}>
+                <span style={{ background: p.bg }} /><span style={{ background: p.fg }} />
+              </button>
+            ))}
+          </div>
+          <div className="row" style={{ marginTop: 8 }}>
+            <label className="row color-pick">Latar <input type="color" value={palette.bg} onChange={(e) => setPalette((p) => ({ ...p, bg: e.target.value.toUpperCase() }))} /> <span className="mono faint">{palette.bg}</span></label>
+            <label className="row color-pick">Teks <input type="color" value={palette.fg} onChange={(e) => setPalette((p) => ({ ...p, fg: e.target.value.toUpperCase() }))} /> <span className="mono faint">{palette.fg}</span></label>
+            <button className="btn ghost sm" onClick={() => setPalette((p) => ({ bg: p.fg, fg: p.bg }))}>⇄ Tukar</button>
+          </div>
+          <Contrast bg={palette.bg} fg={palette.fg} />
+
+          <label className="label">Format</label>
+          <div className="seg">{FORMATS.map((f) => <button key={f.id} aria-pressed={format === f.id} onClick={() => setFormat(f.id)}>{f.label}</button>)}</div>
+
+          <details className="fold" style={{ marginTop: 16 }} open>
+            <summary>Detail posting</summary>
+            <div className="grid g-2" style={{ gap: 8 }}>
+              <div><label className="label">Nama desain</label><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+              <div><label className="label">Kategori</label>
+                <select className="select" value={category} onChange={(e) => setCategory(e.target.value)}>{Object.entries(CATEGORY).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+              </div>
+            </div>
+            <label className="label">Sumber (tampil di kartu)</label>
+            <input className="input" value={credit} onChange={(e) => setCredit(e.target.value)} placeholder="Sumber: …" />
+            <label className="label">Caption <span className="faint">(kosong = dibuat dari judul slide)</span></label>
+            <textarea className="textarea" rows={4} value={caption} onChange={(e) => setCaption(e.target.value)} />
+            <label className="label">Hashtag</label>
+            <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} />
+            <label className="label">Platform</label>
+            <div className="chips">{TARGETS.map((t) => <button key={t.id} className="chip" aria-pressed={targets.includes(t.id)} onClick={() => setTargets((ts) => (ts.includes(t.id) ? ts.filter((x) => x !== t.id) : [...ts, t.id]))}>{t.label}</button>)}</div>
+            {designers.length > 1 && (
+              <>
+                <label className="label">Dikerjakan oleh</label>
+                <select className="select" value={designer?.id ?? ""} onChange={(e) => setAgentId(e.target.value || null)}>{designers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
+              </>
+            )}
+          </details>
+
+          <div className="action-bar">
+            <button className="btn primary" disabled={busy || !slides.length} onClick={submit}><I.inbox size={14} /> {busy ? "Mendesain…" : "Kirim ke Inbox untuk disetujui"}</button>
+          </div>
+        </div>
+
+        <Preview slides={slides} palette={palette} format={format} credit={credit} ratio={FORMATS.find((f) => f.id === format)!.ratio} />
+      </div>
+    </>
+  );
+}
+
+/** WCAG contrast ratio between the two colours, so text stays readable. */
+function Contrast({ bg, fg }: { bg: string; fg: string }) {
+  const lum = (hex: string) => {
+    const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  };
+  const [a, b] = [lum(bg), lum(fg)].sort((x, y) => y - x);
+  const ratio = (a + 0.05) / (b + 0.05);
+  const ok = ratio >= 4.5;
+  return <div className={`tag ${ok ? "ok" : "warn"}`} style={{ marginTop: 8 }}>Kontras {ratio.toFixed(1)}:1 · {ok ? "mudah dibaca" : "kurang kontras — teks kecil sulit dibaca"}</div>;
+}
+
+function Preview({ slides, palette, format, credit, ratio }: { slides: CardSlide[]; palette: { bg: string; fg: string }; format: DesignFormat; credit: string; ratio: string }) {
+  const [urls, setUrls] = useState<(string | null)[]>([]);
+  const [loading, setLoading] = useState(false);
+  const key = useMemo(() => JSON.stringify({ slides, palette, format, credit }), [slides, palette, format, credit]);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const live = useRef<string[]>([]);
+
+  useEffect(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(async () => {
+      setLoading(true);
+      const out = await Promise.all(
+        slides.map(async (slide, index) => {
+          if (!slide.title.trim()) return null;
+          const res = await fetch("/api/design/preview", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ slide, palette, format, index, total: slides.length, sourceCredit: credit }),
+          }).catch(() => null);
+          return res?.ok ? URL.createObjectURL(await res.blob()) : null;
+        })
+      );
+      live.current.forEach((u) => URL.revokeObjectURL(u));
+      live.current = out.filter((u): u is string => !!u);
+      setUrls(out);
+      setLoading(false);
+    }, 450);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  function downloadAll() {
+    urls.forEach((u, i) => {
+      if (!u) return;
+      const a = document.createElement("a");
+      a.href = u;
+      a.download = `desain-${String(i + 1).padStart(2, "0")}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+  }
+
+  return (
+    <div className="studio-preview">
+      <div className="row" style={{ marginBottom: 10 }}>
+        <span className="muted">{slides.length} slide {loading && "· merender…"}</span>
+        <span className="grow" />
+        <button className="btn sm" disabled={!urls.some(Boolean)} onClick={downloadAll}>Unduh semua PNG</button>
+      </div>
+      <div className={`preview-grid ${format}`}>
+        {slides.map((_, i) => (
+          <div key={i} className="preview-item">
+            <div className="preview-frame" style={{ aspectRatio: ratio, background: palette.bg }}>
+              {urls[i] && <img src={urls[i]!} alt={`Slide ${i + 1}`} />}
+            </div>
+            <div className="row" style={{ marginTop: 4, fontSize: 12 }}>
+              <span className="faint">Slide {i + 1}</span><span className="grow" />
+              {urls[i] && <a className="faint" href={urls[i]!} download={`desain-${String(i + 1).padStart(2, "0")}.png`}>Unduh</a>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -20,6 +20,7 @@ export async function POST(req: Request) {
       slug: `${slugify(a.name)}-${Math.random().toString(36).slice(2, 6)}`,
       name: a.name,
       role: a.role,
+      kind: a.kind ?? "writer",
       color: a.color ?? "#5E6AD2",
       status: a.status ?? "active",
       platforms: a.platforms ?? ["instagram:carousel", "threads:text"],

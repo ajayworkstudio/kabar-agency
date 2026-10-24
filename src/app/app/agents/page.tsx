@@ -46,7 +46,7 @@ function Agents() {
                   {a.platforms.map((p) => <span key={p} className="tag">{targetLabel(p)}</span>)}
                 </div>
                 <div className="muted" style={{ fontSize: 12 }}>
-                  {a.categories.length ? a.categories.map((c) => CATEGORY[c]).join(", ") : "Semua kategori"} · laporan {String(a.settings.reportHour).padStart(2, "0")}.00 WIB
+                  {a.kind === "designer" ? "Desainer · bekerja dari teks di Studio desain" : `${a.categories.length ? a.categories.map((c) => CATEGORY[c]).join(", ") : "Semua kategori"} · laporan ${String(a.settings.reportHour).padStart(2, "0")}.00 WIB`}
                 </div>
                 <div className="mini-stats">
                   <div><b>{mine.filter((t) => ["todo", "in_progress", "in_review"].includes(t.status)).length}</b><span>tugas aktif</span></div>
