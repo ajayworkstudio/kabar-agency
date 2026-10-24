@@ -140,8 +140,25 @@ function cardTree(slide: CardSlide, o: CardOpts): Node {
   );
 }
 
+/** satori can't be trusted to fetch remote images reliably — inline them as data: URLs first. */
+async function inlineImage(src: string | undefined): Promise<string | undefined> {
+  if (!src || src.startsWith("data:")) return src;
+  try {
+    const res = await fetch(src, { signal: AbortSignal.timeout(10000) });
+    const type = res.headers.get("content-type") ?? "";
+    if (!res.ok || !/image\/(jpeg|png)/.test(type)) return undefined;
+    return `data:${type.split(";")[0]};base64,${Buffer.from(await res.arrayBuffer()).toString("base64")}`;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function renderCard(slide: CardSlide, o: CardOpts): Promise<Uint8Array> {
   const { W, H } = SIZES[o.format as DesignFormat];
+  if (slide.image) {
+    const image = o.palette ? await inlineImage(slide.image) : undefined;
+    slide = { ...slide, image };
+  }
   const tree = o.palette
     ? twoToneTree(slide, { palette: o.palette, format: o.format, brandName: o.brandName, brandHandle: o.brandHandle, sourceCredit: o.sourceCredit, index: o.index, total: o.total })
     : cardTree(slide, { ...o, format: o.format === "square" ? "post" : o.format });

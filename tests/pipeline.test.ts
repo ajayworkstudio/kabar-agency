@@ -241,3 +241,22 @@ Pemesanan awal dibuka mulai 30 Oktober melalui iBox dan Erafone. Unit pertama di
     expect(out[0].byteLength).toBeGreaterThan(10000);
   });
 });
+
+describe("slide photos", () => {
+  const png1x1 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+  it("renders every layout in every format", async () => {
+    const { renderCard } = await import("../src/pipeline/cards");
+    for (const format of ["post", "square", "story"] as const)
+      for (const imageLayout of ["top", "bottom", "left", "right", "full"] as const) {
+        const out = await renderCard({ kind: "point", title: "Photo *test*", body: "Body", image: png1x1, imageLayout }, { category: "umum", brandName: "b", brandHandle: "@b", sourceCredit: "", index: 0, total: 2, format, palette: { bg: "#F4F1EA", fg: "#111111" } });
+        expect(out.byteLength).toBeGreaterThan(5000);
+      }
+  }, 30000);
+  it("schema accepts https or data:image and rejects anything else", async () => {
+    const { SlideInput } = await import("../src/lib/design");
+    expect(SlideInput.safeParse({ kind: "point", title: "x", image: png1x1, imageLayout: "full" }).success).toBe(true);
+    expect(SlideInput.safeParse({ kind: "point", title: "x", image: "https://x.supabase.co/a.jpg" }).success).toBe(true);
+    expect(SlideInput.safeParse({ kind: "point", title: "x", image: "javascript:alert(1)" }).success).toBe(false);
+    expect(SlideInput.safeParse({ kind: "point", title: "x", image: "http://insecure/a.jpg" }).success).toBe(false);
+  });
+});

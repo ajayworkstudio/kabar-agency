@@ -113,7 +113,11 @@ function Studio() {
   const [mode, setMode] = useState<"text" | "slides">("text");
 
 
-  const applyText = (t: string) => { setRaw(t); setSlides(slidesFromText(t)); };
+  // re-parsing text keeps each slide's photo (matched by position)
+  const applyText = (t: string) => {
+    setRaw(t);
+    setSlides((prev) => slidesFromText(t).map((x, i) => (prev[i]?.image ? { ...x, image: prev[i].image, imageLayout: prev[i].imageLayout } : x)));
+  };
   const reset = () => { applyText(""); setFromStory(null); setCaption(""); setTitle(""); setCredit(""); setTags(""); setRawNews(""); setLink(""); setExtra(""); };
   // while typing in the bullets box, blank lines are kept — strip them before preview / save
   const clean = useMemo(() => slides.map((x) => { const b = x.bullets?.map((y) => y.trim()).filter(Boolean); return { ...x, bullets: b?.length ? b : undefined }; }), [slides]);
@@ -292,6 +296,7 @@ function Studio() {
         </div>
 
         <Preview slides={clean} palette={palette} format={format} credit={credit} ratio={FORMATS.find((f) => f.id === format)!.ratio}
+          onImage={(i, patch) => setSlides((ss) => ss.map((x, k) => (k === i ? (patch ? { ...x, ...patch } : { ...x, image: undefined, imageLayout: undefined }) : x)))}
           caption={`${(caption.trim() || slides.map((s) => s.title.replace(/\*/g, "")).slice(0, 2).join(" — "))}${tags.trim() ? `\n\n${tags.trim()}` : ""}`} onCopied={() => say("Caption disalin")} />
       </div>
     </>
@@ -310,7 +315,37 @@ function Contrast({ bg, fg }: { bg: string; fg: string }) {
   return <div className={`tag ${ok ? "ok" : "warn"}`} style={{ marginTop: 8 }}>Kontras {ratio.toFixed(1)}:1 · {ok ? "mudah dibaca" : "kurang kontras — teks kecil sulit dibaca"}</div>;
 }
 
-function Preview({ slides, palette, format, credit, ratio, caption, onCopied }: { slides: CardSlide[]; palette: { bg: string; fg: string }; format: DesignFormat; credit: string; ratio: string; caption: string; onCopied: () => void }) {
+const LAYOUTS: { id: NonNullable<CardSlide["imageLayout"]>; label: string }[] = [
+  { id: "top", label: "Atas" },
+  { id: "bottom", label: "Bawah" },
+  { id: "left", label: "Kiri" },
+  { id: "right", label: "Kanan" },
+  { id: "full", label: "Penuh" },
+];
+
+/** Resize to ≤1600px and re-encode as JPEG in the browser (phones' 5–10MB photos → ~300KB). */
+async function compressImage(file: File, max = 1600, quality = 0.85): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const im = await new Promise<HTMLImageElement>((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = fail; i.src = url; });
+    const k = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.round(im.naturalWidth * k);
+    c.height = Math.round(im.naturalHeight * k);
+    c.getContext("2d")!.drawImage(im, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", quality);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function Preview({ slides, palette, format, credit, ratio, caption, onCopied, onImage }: {
+  slides: CardSlide[]; palette: { bg: string; fg: string }; format: DesignFormat; credit: string; ratio: string; caption: string; onCopied: () => void;
+  onImage: (index: number, patch: Partial<CardSlide> | null) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [imgError, setImgError] = useState<string | null>(null);
   const [urls, setUrls] = useState<(string | null)[]>([]);
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState(0);
@@ -377,6 +412,26 @@ function Preview({ slides, palette, format, credit, ratio, caption, onCopied }: 
   }
   const copy = () => navigator.clipboard.writeText(caption).then(onCopied);
 
+  async function pickImage(file: File | undefined) {
+    if (!file) return;
+    const at = active;
+    setImgError(null);
+    setUploading(true);
+    try {
+      const dataUrl = await compressImage(file);
+      // store it so drafts keep a small URL; demo / no storage → keep the compressed image inline
+      const res = await fetch("/api/design/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dataUrl }) }).catch(() => null);
+      const j = (await res?.json().catch(() => null)) as { url?: string } | null;
+      onImage(at, { image: res?.ok && j?.url ? j.url : dataUrl, imageLayout: slides[at]?.imageLayout ?? "top" });
+    } catch {
+      setImgError("Gambar tidak bisa dibaca — coba JPG atau PNG");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+  const cur = slides[active];
+
   return (
     <div className="studio-preview">
       <div className="row preview-head">
@@ -407,6 +462,24 @@ function Preview({ slides, palette, format, credit, ratio, caption, onCopied }: 
         </div>
         <button className="swipe-nav next" onClick={() => go(active + 1)} disabled={active >= slides.length - 1} aria-label="Slide berikutnya">›</button>
       </div>
+
+      {cur && (
+        <div className="img-tools">
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => pickImage(e.target.files?.[0])} />
+          <button className="btn sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
+            {uploading ? "Mengunggah…" : cur.image ? "Ganti gambar" : `+ Gambar di slide ${active + 1}`}
+          </button>
+          {cur.image && (
+            <>
+              <div className="seg" role="group" aria-label="Posisi gambar">
+                {LAYOUTS.map((l) => <button key={l.id} aria-pressed={(cur.imageLayout ?? "top") === l.id} onClick={() => onImage(active, { imageLayout: l.id })}>{l.label}</button>)}
+              </div>
+              <button className="btn ghost sm" onClick={() => onImage(active, null)} aria-label="Hapus gambar">Hapus</button>
+            </>
+          )}
+          {imgError && <span className="faint" style={{ color: "var(--bad)", fontSize: 12 }}>{imgError}</span>}
+        </div>
+      )}
 
       {slides.length > 1 && (
         <div className="dots" role="tablist">

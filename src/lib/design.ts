@@ -9,6 +9,9 @@ export const SlideInput = z.object({
   title: z.string().trim().min(1, "judul slide kosong").max(220),
   body: z.string().max(400).optional(),
   bullets: z.array(z.string().trim().min(1).max(140)).max(10).optional(),
+  // uploaded photo URL, or a compressed data: URL when storage isn't available (demo)
+  image: z.string().max(3_000_000).refine((u) => /^https:\/\//.test(u) || /^data:image\/(jpeg|png);base64,/.test(u), "gambar harus https:// atau data:image").optional(),
+  imageLayout: z.enum(["top", "bottom", "left", "right", "full"]).optional(),
 });
 
 export const PaletteInput = z.object({ bg: hex, fg: hex });

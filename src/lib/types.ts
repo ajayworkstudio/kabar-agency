@@ -18,6 +18,8 @@ export type CardSlide = {
   title: string;     // big text
   body?: string;     // supporting text
   bullets?: string[]; // list rows; "Label: value" renders as a two-column row
+  image?: string;     // photo URL (or data: URL) for the designer style
+  imageLayout?: "top" | "bottom" | "left" | "right" | "full";
 };
 
 export type VideoScene = {
