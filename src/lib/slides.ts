@@ -20,3 +20,34 @@ export function slidesFromText(text: string) {
     return { kind, kicker, title, body: body || undefined };
   });
 }
+
+export type BriefArticle = { outlet: string; title: string; snippet: string | null; url: string };
+
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).replace(/\s+\S*$/, "")}…` : s);
+
+/**
+ * Turn a story + its articles into Studio text, without AI.
+ * Cover = headline, then one slide per different outlet angle, then a comment prompt.
+ * Text stays in the source language — edit or translate before sending to the Inbox.
+ */
+export function storyToText(story: { headline: string; category: string }, articles: BriefArticle[], lang: "en" | "id", categoryLabel: string) {
+  const seen = new Set<string>([story.headline.toLowerCase()]);
+  const angles = articles.filter((a) => {
+    const k = a.title.toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  }).slice(0, 4);
+  const first = articles.find((a) => a.snippet)?.snippet ?? "";
+  const blocks = [
+    `#${categoryLabel}\n${clip(story.headline, 110)}${first ? `\n${clip(first, 170)}` : ""}`,
+    ...angles.map((a) => `#${a.outlet}\n${clip(a.title, 110)}${a.snippet ? `\n${clip(a.snippet, 170)}` : ""}`),
+    lang === "en" ? "What's your take?\nDrop it in the comments." : "Menurutmu gimana?\nTulis di kolom komentar ya.",
+  ];
+  const outlets = [...new Set(articles.map((a) => a.outlet))].slice(0, 4).join(", ");
+  return {
+    text: blocks.join("\n\n"),
+    credit: `${lang === "en" ? "Source" : "Sumber"}: ${outlets}`,
+    caption: `${story.headline}\n\n${lang === "en" ? "Source" : "Sumber"}: ${outlets}`,
+  };
+}

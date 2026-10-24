@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import { Topbar } from "@/components/Shell";
 import { ago, CATEGORY, catColor, CatTag } from "@/components/ui";
@@ -57,7 +58,10 @@ export default function News() {
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 18, fontWeight: 600 }}>{Math.round(s.heat)}</div>
                 <div className="faint" style={{ fontSize: 10.5, letterSpacing: 1 }}>HEAT</div>
-                {s.status !== "drafted" && <button className="btn sm" style={{ marginTop: 6 }} disabled={busy === s.id} onClick={() => draft(s.id, s.outlet_count, s.category)}>{busy === s.id ? "Menulis…" : "Draft"}</button>}
+                <div style={{ display: "grid", gap: 4, marginTop: 6, justifyItems: "end" }}>
+                  <Link href={`/app/studio?story=${s.id}`} className="btn sm primary" title="Langsung ke desain Dita — tanpa AI">Kirim ke Dita</Link>
+                  {s.status !== "drafted" && <button className="btn sm" disabled={busy === s.id} onClick={() => draft(s.id, s.outlet_count, s.category)} title="Raka menulis dengan AI (butuh saldo Anthropic)">{busy === s.id ? "Menulis…" : "Tulis via AI"}</button>}
+                </div>
               </div>
             </div>
           ))}

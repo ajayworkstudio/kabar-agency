@@ -132,3 +132,22 @@ describe("manual posting + Gen Z", () => {
     expect(genzScore("Rapat koordinasi anggaran daerah")).toBe(0);
   });
 });
+
+describe("story → Dita without AI", () => {
+  it("builds studio text: cover, one slide per outlet angle, comment prompt", async () => {
+    const { storyToText, slidesFromText } = await import("../src/lib/slides");
+    const out = storyToText(
+      { headline: "Timnas lolos ke final Piala AFF", category: "olahraga" },
+      [
+        { outlet: "Antara", title: "Timnas lolos ke final Piala AFF", snippet: "Menang 2-1 atas Vietnam.", url: "#" },
+        { outlet: "Detik", title: "Gol menit 89 bawa Garuda ke final", snippet: "Sundulan dari sepak pojok.", url: "#" },
+      ],
+      "en",
+      "Olahraga"
+    );
+    const slides = slidesFromText(out.text);
+    expect(slides.map((s) => s.kind)).toEqual(["cover", "point", "closing"]);
+    expect(slides[1]).toMatchObject({ kicker: "Detik", title: "Gol menit 89 bawa Garuda ke final" });
+    expect(out.credit).toBe("Source: Antara, Detik");
+  });
+});

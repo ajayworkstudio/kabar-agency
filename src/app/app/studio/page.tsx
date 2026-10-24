@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Topbar } from "@/components/Shell";
 import { Avatar, CATEGORY, I, TARGETS } from "@/components/ui";
 import { useWorkspace } from "@/components/workspace";
-import { slidesFromText } from "@/lib/slides";
+import { slidesFromText, storyToText, type BriefArticle } from "@/lib/slides";
 import type { CardSlide } from "@/lib/types";
 import { PALETTES, type DesignFormat } from "@/pipeline/twotone";
 
@@ -35,7 +36,11 @@ The Indonesia national team defender was left out of the squad.
 Will Diks be back next match?
 Drop your prediction in the comments.`;
 
-export default function Studio() {
+export default function Page() {
+  return <Suspense><Studio /></Suspense>;
+}
+
+function Studio() {
   const { ws, call, say } = useWorkspace();
   const designers = ws?.agents.filter((a) => a.kind === "designer") ?? [];
   const [agentId, setAgentId] = useState<string | null>(null);
@@ -48,6 +53,29 @@ export default function Studio() {
   const [caption, setCaption] = useState("");
   const [tags, setTags] = useState("#Bundesliga #KevinDiks #Gladbach #Indonesia");
   const [credit, setCredit] = useState("Source: detikSport");
+  const storyId = useSearchParams().get("story");
+  const [fromStory, setFromStory] = useState<{ headline: string; outlets: number } | null>(null);
+
+  // "Kirim ke Dita" from the news list: pre-fill the studio from the story's articles (no AI needed)
+  useEffect(() => {
+    if (!storyId) return;
+    (async () => {
+      const res = await fetch(`/api/stories/${storyId}/brief`, { cache: "no-store" });
+      if (!res.ok) return;
+      const { story, articles } = (await res.json()) as { story: { headline: string; category: string; outlet_count: number }; articles: BriefArticle[] };
+      const lang = ws?.config.contentLang === "id" ? "id" : "en";
+      const built = storyToText(story, articles, lang, CATEGORY[story.category] ?? "News");
+      setRaw(built.text);
+      setSlides(slidesFromText(built.text));
+      setTitle(story.headline.slice(0, 120));
+      setCategory(story.category);
+      setCredit(built.credit);
+      setCaption(built.caption);
+      setMode("text");
+      setFromStory({ headline: story.headline, outlets: story.outlet_count });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storyId]);
   const [targets, setTargets] = useState<string[]>(["instagram:carousel", "threads:carousel"]);
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"text" | "slides">("text");
@@ -82,6 +110,12 @@ export default function Studio() {
             </div>
           )}
 
+          {fromStory && (
+            <div className="note" style={{ marginBottom: 12 }}>
+              Diisi dari berita <b>“{fromStory.headline}”</b> ({fromStory.outlets} outlet). Teks masih mengikuti bahasa sumber —
+              {ws?.config.contentLang === "id" ? " rapikan seperlunya," : " terjemahkan ke bahasa Inggris & rapikan,"} lalu kirim ke Inbox.
+            </div>
+          )}
           <div className="seg" style={{ marginBottom: 6 }}>
             <button aria-pressed={mode === "text"} onClick={() => setMode("text")}>Tempel teks</button>
             <button aria-pressed={mode === "slides"} onClick={() => setMode("slides")}>Edit per slide ({slides.length})</button>
