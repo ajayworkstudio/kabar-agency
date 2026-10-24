@@ -64,7 +64,10 @@ export async function generate(opts: { storyId?: string; agentId?: string } = {}
 
   const made: string[] = [];
   const errors: string[] = [];
+  const t0 = Date.now();
   for (const { s, agent } of work) {
+    // each draft takes ~20–40s (two AI calls + rendering); stop early rather than hit the platform timeout
+    if (Date.now() - t0 > 45_000 && made.length) break;
     // claim the story so a parallel run can't draft it twice
     const { data: claimed } = await supa.from("stories").update({ status: "drafted" }).eq("id", s.id).in("status", ["confirmed", "developing"]).select("id");
     if (!claimed?.length && !opts.storyId) continue;

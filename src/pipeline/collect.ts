@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import Parser from "rss-parser";
 import { SOURCES, type SourceDef } from "@/config/sources";
 import { db } from "@/lib/db";
@@ -114,77 +115,102 @@ export async function collect() {
     .from("stories")
     .select("id, headline, category, keywords, first_seen_at, last_seen_at, status")
     .gte("last_seen_at", new Date(Date.now() - 48 * 3600_000).toISOString());
-  const stories = (storyRows ?? []).map((s) => ({ ...s, keywords: s.keywords as string[] }));
+  type S = { id: string; headline: string; category: string; keywords: string[]; first_seen_at: string; last_seen_at: string; status: string };
+  const stories: S[] = (storyRows ?? []).map((s) => ({ ...(s as S), keywords: s.keywords as string[] }));
 
+  // ── 1. cluster in memory (no DB round trips per article) ──
+  const nowIso = new Date().toISOString();
   const touched = new Set<string>();
+  const created: S[] = [];
+  const articleRows: Record<string, unknown>[] = [];
   for (const it of newItems) {
-    // Claim the article first. If a parallel run already stored this URL we get nothing back
-    // and skip it — so we never create a story that has no articles.
-    const { data: claimed } = await supa
-      .from("articles")
-      .upsert(
-        {
-          source_id: it.sourceId,
-          outlet: it.outlet,
-          url: it.url,
-          title: it.title,
-          snippet: it.snippet,
-          category: guessCategory(`${it.title} ${it.snippet}`, it.category),
-          published_at: it.publishedAt?.toISOString() ?? null,
-        },
-        { onConflict: "url", ignoreDuplicates: true }
-      )
-      .select("id");
-    const articleId = claimed?.[0]?.id as string | undefined;
-    if (!articleId) continue;
-
     const titleKw = keywords(it.title);
-    let story = stories.find((s) => isSameStory(titleKw, s.keywords));
+    const category = guessCategory(`${it.title} ${it.snippet}`, it.category);
+    let story = stories.find((st) => isSameStory(titleKw, st.keywords));
     if (!story) {
-      const { data, error } = await supa
-        .from("stories")
-        .insert({ headline: it.title, category: guessCategory(`${it.title} ${it.snippet}`, it.category), keywords: titleKw })
-        .select("id, headline, category, keywords, first_seen_at, last_seen_at, status")
-        .single();
-      if (error || !data) continue;
-      story = { ...data, keywords: data.keywords as string[] };
+      story = { id: randomUUID(), headline: it.title, category, keywords: titleKw, first_seen_at: nowIso, last_seen_at: nowIso, status: "developing" };
       stories.push(story);
+      created.push(story);
     } else {
       // widen the story's vocabulary a little so later headlines still match
       story.keywords = [...new Set([...story.keywords, ...titleKw])].slice(0, 40);
     }
-    await supa.from("articles").update({ story_id: story.id }).eq("id", articleId);
     touched.add(story.id);
+    articleRows.push({
+      source_id: it.sourceId,
+      outlet: it.outlet,
+      url: it.url,
+      title: it.title,
+      snippet: it.snippet,
+      category,
+      published_at: it.publishedAt?.toISOString() ?? null,
+      story_id: story.id,
+    });
   }
 
-  // re-rank every touched story + recently active ones (so decay applies)
+  // ── 2. write in bulk: new stories, then their articles ──
+  for (let k = 0; k < created.length; k += 500) {
+    const { error } = await supa.from("stories").insert(
+      created.slice(k, k + 500).map((st) => ({ id: st.id, headline: st.headline, category: st.category, keywords: st.keywords, first_seen_at: st.first_seen_at, last_seen_at: st.last_seen_at }))
+    );
+    if (error) throw new Error(`insert stories: ${error.message}`);
+  }
+  for (let k = 0; k < articleRows.length; k += 500) {
+    // ignoreDuplicates: an overlapping run may have stored the same URL a moment ago
+    const { error } = await supa.from("articles").upsert(articleRows.slice(k, k + 500), { onConflict: "url", ignoreDuplicates: true });
+    if (error) throw new Error(`insert articles: ${error.message}`);
+  }
+
+  // ── 3. re-rank touched stories + open ones active in the last 6h (so heat decays) ──
   const { data: recentTrends } = await supa.from("trends").select("term").gte("seen_at", new Date(Date.now() - 12 * 3600_000).toISOString());
   const terms = [...new Set((recentTrends ?? []).map((t) => t.term as string))];
-
-  // touched stories, plus open ones active in the last 6h (so heat decays) — capped to keep the run fast
   const sixH = Date.now() - 6 * 3600_000;
   const toRank = stories
-    .filter((s) => touched.has(s.id) || (["developing", "confirmed"].includes(s.status as string) && new Date(s.last_seen_at as string).getTime() > sixH))
-    .slice(0, 250);
-  for (const s of toRank) {
-    const { data: arts } = await supa.from("articles").select("outlet, published_at, fetched_at").eq("story_id", s.id);
-    if (!arts?.length) continue;
-    const outlets = new Set(arts.map((a) => canonicalOutlet(a.outlet as string)).filter((o) => !o.startsWith("google")));
-    const recent = arts.filter((a) => Date.now() - new Date((a.published_at ?? a.fetched_at) as string).getTime() < 2 * 3600_000).length;
-    const trendHits = terms.filter((t) => matchesTrend(s.keywords, t)).length;
-    const ageHours = (Date.now() - new Date(s.first_seen_at as string).getTime()) / 3600_000;
-    const h = heat({ outletCount: outlets.size, articleCount: arts.length, recentArticles: recent, trendHits, ageHours });
-    const update: Record<string, unknown> = {
+    .filter((st) => touched.has(st.id) || (["developing", "confirmed"].includes(st.status) && new Date(st.last_seen_at).getTime() > sixH))
+    .slice(0, 600);
+
+  const byStory = new Map<string, { outlet: string; published_at: string | null; fetched_at: string }[]>();
+  for (let k = 0; k < toRank.length; k += 150) {
+    const ids = toRank.slice(k, k + 150).map((st) => st.id);
+    const { data } = await supa.from("articles").select("story_id, outlet, published_at, fetched_at").in("story_id", ids);
+    (data ?? []).forEach((a) => {
+      const list = byStory.get(a.story_id as string) ?? [];
+      list.push(a as { outlet: string; published_at: string | null; fetched_at: string });
+      byStory.set(a.story_id as string, list);
+    });
+  }
+
+  const updates: Record<string, unknown>[] = [];
+  const orphans: string[] = [];
+  for (const st of toRank) {
+    const arts = byStory.get(st.id);
+    if (!arts?.length) {
+      if (created.includes(st)) orphans.push(st.id); // its only article was taken by an overlapping run
+      continue;
+    }
+    const outlets = new Set(arts.map((a) => canonicalOutlet(a.outlet)).filter((o) => !o.startsWith("google")));
+    const recent = arts.filter((a) => Date.now() - new Date(a.published_at ?? a.fetched_at).getTime() < 2 * 3600_000).length;
+    const trendHits = terms.filter((t) => matchesTrend(st.keywords, t)).length;
+    const ageHours = (Date.now() - new Date(st.first_seen_at).getTime()) / 3600_000;
+    updates.push({
+      id: st.id,
+      headline: st.headline,
+      category: st.category,
+      keywords: st.keywords,
+      first_seen_at: st.first_seen_at,
+      last_seen_at: touched.has(st.id) ? nowIso : st.last_seen_at,
+      status: st.status === "developing" && outlets.size >= 2 ? "confirmed" : st.status,
       outlet_count: outlets.size,
       article_count: arts.length,
       trend_score: trendHits,
-      heat: h,
-      keywords: s.keywords,
-    };
-    if (touched.has(s.id)) update.last_seen_at = new Date().toISOString();
-    if (s.status === "developing" && outlets.size >= 2) update.status = "confirmed";
-    await supa.from("stories").update(update).eq("id", s.id);
+      heat: heat({ outletCount: outlets.size, articleCount: arts.length, recentArticles: recent, trendHits, ageHours }),
+    });
   }
+  for (let k = 0; k < updates.length; k += 500) {
+    const { error } = await supa.from("stories").upsert(updates.slice(k, k + 500), { onConflict: "id" });
+    if (error) throw new Error(`update stories: ${error.message}`);
+  }
+  if (orphans.length) await supa.from("stories").delete().in("id", orphans);
 
   return {
     summary: `${results.length - failed}/${results.length} feeds ok, ${newItems.length} new articles, ${touched.size} stories updated, ${trendTerms.length} trend terms`,

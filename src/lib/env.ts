@@ -22,7 +22,7 @@ export const env = {
 
   minSources: num(process.env.MIN_SOURCES, 2),
   minSourcesPolitics: num(process.env.MIN_SOURCES_POLITICS, 3),
-  maxDraftsPerRun: num(process.env.MAX_DRAFTS_PER_RUN, 4),
+  maxDraftsPerRun: num(process.env.MAX_DRAFTS_PER_RUN, 2),
   postSlots: (process.env.POST_SLOTS ?? "07:00,11:30,16:00,19:30,21:00").split(",").map((s) => s.trim()).filter(Boolean),
 
   telegramToken: process.env.TELEGRAM_BOT_TOKEN ?? "",
