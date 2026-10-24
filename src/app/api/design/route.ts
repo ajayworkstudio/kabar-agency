@@ -46,6 +46,7 @@ export async function POST(req: Request) {
     sourceCredit: d.sourceCredit,
     sensitivity: d.category === "politik" ? "high" : "low",
     design: { palette: d.palette, format: d.format },
+    manual: true,
   };
 
   const { data: draft, error } = await supa

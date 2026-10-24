@@ -46,6 +46,16 @@ export const SOURCES: SourceDef[] = [
   { id: "gn-viral", outlet: "Google News", url: gnews("viral when:1d"), kind: "google_news", category: "hiburan" },
   { id: "gn-artis", outlet: "Google News", url: gnews("artis OR selebriti when:1d"), kind: "google_news", category: "hiburan" },
 
+  // ── Gen Z beats: internet culture, K-culture, games, tech, campus & work ──
+  { id: "gn-genz-viral", outlet: "Google News", url: gnews("viral OR netizen OR tiktok when:1d"), kind: "google_news", category: "hiburan" },
+  { id: "gn-genz-kculture", outlet: "Google News", url: gnews("kpop OR idol OR drakor OR konser when:1d"), kind: "google_news", category: "hiburan" },
+  { id: "gn-genz-screen", outlet: "Google News", url: gnews("film OR netflix OR anime OR series when:1d"), kind: "google_news", category: "hiburan" },
+  { id: "gn-genz-games", outlet: "Google News", url: gnews("esports OR \"mobile legends\" OR game when:1d"), kind: "google_news", category: "teknologi" },
+  { id: "gn-genz-tech", outlet: "Google News", url: gnews("AI OR gadget OR aplikasi OR iphone when:1d"), kind: "google_news", category: "teknologi" },
+  { id: "gn-genz-life", outlet: "Google News", url: gnews("\"gen z\" OR mahasiswa OR \"fresh graduate\" OR lowongan when:1d"), kind: "google_news", category: "ekonomi" },
+  { id: "gn-idntimes", outlet: "Google News", url: gnews("site:idntimes.com when:1d"), kind: "google_news" },
+  { id: "gn-kumparan", outlet: "Google News", url: gnews("site:kumparan.com when:1d"), kind: "google_news" },
+
   // ── What people are searching right now ──
   { id: "trends-id", outlet: "Google Trends", url: "https://trends.google.com/trending/rss?geo=ID", kind: "trends" },
 ];

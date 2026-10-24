@@ -90,6 +90,8 @@ export default function AgentPage() {
               <div className="card-h">Aturan kerja</div>
               <div className="card-b props" style={{ margin: 0 }}>
                 <span>Jenis</span><span>{a.kind === "designer" ? "Desainer — bekerja dari teks admin di Studio" : "Penulis berita — mencari & menulis otomatis"}</span>
+                {a.kind === "writer" && <><span>Fokus audiens</span><span>{a.settings.focus === "genz" ? "Gen Z — viral, K-culture, game, tech, kampus" : "Umum"}</span></>}
+                {a.kind === "designer" && a.settings.palette && <><span>Palet default</span><span className="row"><span className="dot" style={{ width: 12, height: 12, borderRadius: 3, background: a.settings.palette.bg, outline: "1px solid var(--line-2)" }} /><span className="dot" style={{ width: 12, height: 12, borderRadius: 3, background: a.settings.palette.fg, outline: "1px solid var(--line-2)" }} /> {a.settings.palette.bg} / {a.settings.palette.fg}</span></>}
                 <span>Min. outlet</span><span>{a.settings.minSources} (politik {a.settings.minSourcesPolitics})</span>
                 <span>Kuota draft</span><span>{a.settings.maxDraftsPerDay} / hari</span>
                 <span>Laporan harian</span><span>{String(a.settings.reportHour).padStart(2, "0")}.00 WIB</span>

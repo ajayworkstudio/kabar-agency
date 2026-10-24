@@ -25,7 +25,7 @@ export type Run = { id: number; job: string; ok: boolean; summary: string; start
 export type Workspace = {
   demo: boolean;
   brand: { name: string; handle: string };
-  config: { postSlots: string[]; platforms: Record<string, boolean> };
+  config: { postSlots: string[]; platforms: Record<string, boolean>; publishMode?: "manual" | "api"; contentLang?: "en" | "id" };
   agents: Agent[]; tasks: Task[]; reports: Report[]; drafts: Draft[]; stories: Story[]; posts: Post[];
   sources: Source[]; runs: Run[]; trends: { term: string; traffic: string | null }[]; charts: Charts;
 };

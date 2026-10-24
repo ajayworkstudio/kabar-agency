@@ -21,6 +21,8 @@ Cara kerja tiap karyawan:
 - **Riset** — buat tugas "Riset topik" (mis. *pantau isu harga beras di Jateng*); dalam ±20 menit bot mencari berita 3 hari terakhir, merangkum, mengusulkan angle konten, dan hasilnya masuk Inbox.
 - **Laporan harian** — tiap hari pada jam laporannya (default 07.00 WIB) bot mengirim ringkasan berita terbaru, trending, dan kinerja konten ke dashboard + Telegram.
 
+**Kerja sama Raka + Dita** — setiap draft yang ditulis Raka otomatis didesain Dita memakai palet 2 warna default-nya (atur di profil Dita). **Mode posting manual** (default, `PUBLISH_MODE=manual`): setujui draft → muncul "Siap diposting" di Inbox → unduh slide (satu per satu atau ZIP berisi PNG + `captions.txt`), salin caption, posting sendiri, lalu klik "Tandai sudah diposting". Tidak perlu API Instagram/TikTok. Raka berfokus **Gen Z** (sumber viral, K-culture, film, game, tech, kampus & kerja; gaya tulisan Gen Z).
+
 Coba tanpa akun apa pun: `DEMO_MODE=true npm run dev` lalu buka `http://localhost:3000`.
 
 ---
@@ -73,7 +75,7 @@ Samples of the generated design are in `docs/samples/` (cards + `sample.mp4`).
 ## Setup (≈1 hour, most of it waiting on platform approvals)
 
 ### 1. Supabase
-1. Create a project → **SQL Editor** → run `supabase/migrations/001_init.sql`, then `002_agency.sql`, then `003_designer.sql`.
+1. Create a project → **SQL Editor** → run `supabase/migrations/001_init.sql`, then `002_agency.sql`, `003_designer.sql`, `004_genz_handoff.sql`.
 2. Copy the project URL and the **service_role** key (Settings → API).
 
 ### 2. Local test

@@ -23,6 +23,17 @@ export async function approveDraft(id: string, mode: "now" | "slot" | Date, targ
   if (!["pending", "failed"].includes(d.status as string)) return { status: d.status as string, scheduledFor: null };
 
   const finalTargets = (targets?.length ? targets : (d.targets as string[])).filter((t) => (ALL_TARGETS as readonly string[]).includes(t));
+
+  // Manual mode: nothing is sent to social APIs. The draft becomes "ready" — download the slides,
+  // copy the caption, post it yourself, then mark it as posted.
+  if (env.publishMode === "manual") {
+    await supa
+      .from("drafts")
+      .update({ status: "ready", targets: finalTargets, scheduled_for: null, approved_at: new Date().toISOString(), error: null, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    await syncDraftTask(id, "in_progress");
+    return { status: "ready", scheduledFor: null as Date | null };
+  }
   let when: Date;
   if (mode === "now") when = new Date();
   else if (mode instanceof Date) when = mode;
@@ -39,10 +50,25 @@ export async function approveDraft(id: string, mode: "now" | "slot" | Date, targ
     .eq("id", id);
   await syncDraftTask(id, "in_progress");
   if (needsVideo) await dispatchRender(id);
-  return { status, scheduledFor: when };
+  return { status, scheduledFor: when as Date | null };
+}
+
+/** Manual mode: the admin posted it themselves. Records one post per chosen platform (no external id/metrics). */
+export async function markPosted(id: string, permalinks: Record<string, string> = {}) {
+  const supa = db();
+  const { data: d } = await supa.from("drafts").select("id, status, targets").eq("id", id).single();
+  if (!d) throw new Error("draft not found");
+  const now = new Date().toISOString();
+  const rows = (d.targets as string[]).map((t) => {
+    const [platform, format] = t.split(":");
+    return { draft_id: id, platform, format, status: "published", published_at: now, permalink: permalinks[t] ?? null, error: null };
+  });
+  if (rows.length) await supa.from("posts").upsert(rows, { onConflict: "draft_id,platform,format" });
+  await supa.from("drafts").update({ status: "published", updated_at: now }).eq("id", id);
+  await syncDraftTask(id, "done");
 }
 
 export async function rejectDraft(id: string) {
-  await db().from("drafts").update({ status: "rejected", updated_at: new Date().toISOString() }).eq("id", id).in("status", ["pending", "failed", "scheduled"]);
+  await db().from("drafts").update({ status: "rejected", updated_at: new Date().toISOString() }).eq("id", id).in("status", ["pending", "failed", "scheduled", "ready"]);
   await syncDraftTask(id, "canceled");
 }

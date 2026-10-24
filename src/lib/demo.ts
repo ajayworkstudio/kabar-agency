@@ -33,7 +33,7 @@ export function demoWorkspace() {
       "Mengajukan draft ke admin untuk disetujui sebelum terbit",
       "Mengirim laporan harian berita terbaru setiap pukul 07.00 WIB",
     ],
-    settings: { minSources: 2, minSourcesPolitics: 3, maxDraftsPerDay: 12, reportHour: 7 },
+    settings: { minSources: 2, minSourcesPolitics: 3, maxDraftsPerDay: 12, reportHour: 7, focus: "genz" },
     created_at: h(24 * 14),
   };
 
@@ -53,7 +53,7 @@ export function demoWorkspace() {
       "Menyorot kata penting yang ditandai *bintang* dengan blok warna terbalik",
       "Mengirim hasil desain ke Inbox untuk disetujui sebelum terbit",
     ],
-    settings: { minSources: 2, minSourcesPolitics: 3, maxDraftsPerDay: 30, reportHour: 7 },
+    settings: { minSources: 2, minSourcesPolitics: 3, maxDraftsPerDay: 30, reportHour: 7, palette: { bg: "#F4F1EA", fg: "#111111" }, format: "post" },
     created_at: h(5),
   };
 
@@ -90,6 +90,7 @@ export function demoWorkspace() {
   const drafts = [
     { id: "demo-d1", agent_id: AGENT_ID, status: "pending", hook: sport.hook, content: sport, fact_check: { verdict: "pass", issues: [] }, card_urls: [1, 2, 3, 4, 5].map((i) => `/demo/card-${i}.png`), video_url: null, targets: raka.platforms, scheduled_for: null, error: null, created_at: h(0.3), stories: { headline: sport.hook, outlet_count: 5, heat: 92 } },
     { id: "demo-d2", agent_id: AGENT_ID, status: "pending", hook: politik.hook, content: politik, fact_check: { verdict: "warn", issues: [{ text: "Tiga fraksi menolak", problem: "Sumber menyebut 'menyatakan keberatan', bukan menolak." }] }, card_urls: ["/demo/card-politik.png", "/demo/card-2.png", "/demo/card-5.png"], video_url: null, targets: ["instagram:carousel", "threads:text"], scheduled_for: null, error: null, created_at: h(1.1), stories: { headline: politik.hook, outlet_count: 4, heat: 71 } },
+    { id: "demo-d4", agent_id: AGENT_ID, status: "ready", hook: "Veda Ega takes pole at the Australian GP", content: { ...sport, hook: "Veda Ega takes pole at the Australian GP", instagramCaption: "History made 🇮🇩 Veda Ega becomes the first Indonesian rider to take a Grand Prix pole.\n\nRace starts Sunday 07:00 WIB — where does he finish?", tiktokCaption: "First Indonesian on GP pole 🔥", hashtags: ["#VedaEga", "#Moto3", "#AustralianGP"], design: { palette: { bg: "#F4F1EA", fg: "#111111" }, format: "post" } }, fact_check: { verdict: "pass", issues: [] }, card_urls: ["/demo/card-1.png", "/demo/card-2.png"], video_url: null, targets: ["instagram:carousel", "tiktok:video"], scheduled_for: null, error: null, created_at: h(0.9), stories: { headline: "Veda Ega pole", outlet_count: 4, heat: 80 } },
     { id: "demo-d3", agent_id: AGENT_ID, status: "scheduled", hook: "Rupiah Menguat ke Level Terkuat Sebulan", content: { ...sport, category: "ekonomi", hook: "Rupiah Menguat ke Level Terkuat Sebulan" }, fact_check: { verdict: "pass", issues: [] }, card_urls: ["/demo/card-1.png"], video_url: null, targets: ["instagram:carousel", "threads:text"], scheduled_for: new Date(now + 3 * 3600_000).toISOString(), error: null, created_at: h(2.4), stories: { headline: "Rupiah menguat", outlet_count: 3, heat: 33 } },
   ];
 
@@ -163,7 +164,7 @@ export function demoWorkspace() {
   return {
     demo: true,
     brand: { name: "fyinews.official", handle: "@fyinews.official" },
-    config: { postSlots: ["07:00", "11:30", "16:00", "19:30", "21:00"], platforms: { instagram: true, threads: true, tiktok: true, tiktokAudited: false, youtube: true, telegram: true, videoWorker: true, voiceover: false, ai: true } },
+    config: { postSlots: ["07:00", "11:30", "16:00", "19:30", "21:00"], publishMode: "manual", contentLang: "en", platforms: { instagram: true, threads: true, tiktok: true, tiktokAudited: false, youtube: true, telegram: true, videoWorker: true, voiceover: false, ai: true } },
     agents: [raka, dita],
     tasks,
     reports,

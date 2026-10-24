@@ -5,6 +5,11 @@ export type AgentSettings = {
   minSourcesPolitics: number;
   maxDraftsPerDay: number;
   reportHour: number; // WIB hour for the daily report
+  /** Writers: whose interests to prioritise and write for. */
+  focus?: "general" | "genz";
+  /** Designers: default two-colour palette and canvas used when they design a writer's draft. */
+  palette?: { bg: string; fg: string };
+  format?: "post" | "square" | "story";
 };
 
 export type Agent = {
@@ -94,6 +99,6 @@ export async function updateTask(id: string, patch: { status?: TaskStatus; resul
 
 /** Keep the task attached to a draft in step with the draft's lifecycle. */
 export async function syncDraftTask(draftId: string, status: TaskStatus, error?: string | null) {
-  const { data } = await db().from("tasks").select("id").eq("draft_id", draftId).limit(1);
+  const { data } = await db().from("tasks").select("id").eq("draft_id", draftId).in("kind", ["draft", "design"]).order("created_at").limit(1);
   if (data?.[0]) await updateTask(data[0].id as string, { status, error: error ?? null });
 }

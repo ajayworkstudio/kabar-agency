@@ -1,9 +1,13 @@
+import { genzScore } from "@/config/genz";
 import { activeAgents, covers, createTask, wibDayStart, type Agent } from "@/lib/agents";
 import { db, uploadMedia } from "@/lib/db";
 import { env } from "@/lib/env";
 import { notifyDraft } from "@/lib/telegram";
 import type { DraftContent } from "@/lib/types";
 import { renderCarousel } from "./cards";
+import { PALETTES } from "./twotone";
+
+const DEFAULT_PALETTE = { bg: PALETTES[0].bg, fg: PALETTES[0].fg };
 import { canonicalOutlet } from "./cluster";
 import { extractArticle } from "./extract";
 import { factCheck, writeDraft, type SourceDoc } from "./writer";
@@ -45,8 +49,13 @@ export async function generate(opts: { storyId?: string; agentId?: string } = {}
       .eq("status", "confirmed")
       .gte("last_seen_at", new Date(Date.now() - 12 * 3600_000).toISOString())
       .order("heat", { ascending: false })
-      .limit(25);
+      .limit(60);
     candidates = (data ?? []) as StoryRow[];
+    // Gen Z-focused writers: lift stories young, digitally-native readers care about
+    if (agents.some((a) => a.settings.focus === "genz")) {
+      const score = (s: StoryRow) => s.heat * (1 + 0.6 * Math.min(2, genzScore(s.headline)));
+      candidates.sort((a, b) => score(b) - score(a));
+    }
   }
   const work = candidates
     .map((s) => ({ s, agent: pick(s, !!opts.storyId) ?? (opts.storyId ? agents[0] : undefined) }))
@@ -82,7 +91,11 @@ export async function generate(opts: { storyId?: string; agentId?: string } = {}
         docs.push({ outlet: a.outlet as string, title: a.title as string, url: a.url as string, publishedAt: a.published_at as string | null, text: text ?? (a.snippet as string) ?? "" });
       }
 
-      const content: DraftContent = await writeDraft(docs, { category: s.category, trending: s.trend_score > 0 });
+      const content: DraftContent = await writeDraft(docs, { category: s.category, trending: s.trend_score > 0, audience: agent.settings.focus ?? "general" });
+
+      // Hand-off: the first active designer lays the draft out in her two-colour style
+      const designer = (await activeAgents("designer"))[0];
+      if (designer) content.design = { palette: designer.settings.palette ?? DEFAULT_PALETTE, format: designer.settings.format ?? "post" };
       const check = await factCheck(docs, content);
 
       const { data: draft, error } = await supa
@@ -92,7 +105,11 @@ export async function generate(opts: { storyId?: string; agentId?: string } = {}
         .single();
       if (error || !draft) throw new Error(error?.message ?? "insert draft failed");
 
-      const pngs = await renderCarousel(content.carousel, { category: content.category, brandName: env.brandName, brandHandle: env.brandHandle, sourceCredit: content.sourceCredit });
+      const pngs = await renderCarousel(
+        content.carousel,
+        { category: content.category, brandName: env.brandName, brandHandle: env.brandHandle, sourceCredit: content.sourceCredit, palette: content.design?.palette ?? null },
+        content.design?.format ?? "post"
+      );
       const urls = await Promise.all(pngs.map((p, i) => uploadMedia(`drafts/${draft.id}/card-${i + 1}.png`, p, "image/png")));
       await supa.from("drafts").update({ card_urls: urls }).eq("id", draft.id);
 
@@ -121,7 +138,18 @@ export async function generate(opts: { storyId?: string; agentId?: string } = {}
         draft_id: draft.id,
         payload: { storyId: s.id, outlets: s.outlet_count, category: content.category, factCheck: check.verdict },
       });
-      made.push(`${agent.name}: ${content.hook}`);
+      if (designer) {
+        await createTask({
+          agent_id: designer.id,
+          kind: "design",
+          title: `Desain: ${content.hook}`,
+          description: `${pngs.length} slide untuk draft ${agent.name} · ${content.design!.palette.bg} / ${content.design!.palette.fg}`,
+          status: "done",
+          priority: 4,
+          payload: { draftId: draft.id, fromAgent: agent.slug },
+        });
+      }
+      made.push(`${agent.name}${designer ? ` + ${designer.name}` : ""}: ${content.hook}`);
     } catch (e) {
       await supa.from("stories").update({ status: "confirmed" }).eq("id", s.id); // release for a retry next run
       errors.push(`${s.headline.slice(0, 50)}: ${e instanceof Error ? e.message : String(e)}`);

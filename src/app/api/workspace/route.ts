@@ -20,7 +20,7 @@ export async function GET() {
     supa.from("agents").select("*").order("created_at"),
     supa.from("tasks").select("*").order("created_at", { ascending: false }).limit(250),
     supa.from("reports").select("*").order("day", { ascending: false }).limit(30),
-    supa.from("drafts").select("*, stories(headline, outlet_count, heat)").in("status", ["pending", "rendering", "scheduled", "publishing", "failed"]).order("created_at", { ascending: false }).limit(50),
+    supa.from("drafts").select("*, stories(headline, outlet_count, heat)").in("status", ["pending", "ready", "rendering", "scheduled", "publishing", "failed"]).order("created_at", { ascending: false }).limit(50),
     supa.from("drafts").select("created_at, status, agent_id").gte("created_at", d14),
     supa.from("stories").select("id, headline, category, outlet_count, article_count, heat, trend_score, status, first_seen_at, last_seen_at").gte("last_seen_at", h36).order("heat", { ascending: false }).limit(80),
     supa.from("posts").select("id, draft_id, platform, format, status, permalink, error, published_at, metrics, drafts(hook, agent_id)").gte("published_at", d14).order("published_at", { ascending: false }).limit(300),
@@ -34,6 +34,8 @@ export async function GET() {
     brand: { name: env.brandName, handle: env.brandHandle },
     config: {
       postSlots: env.postSlots,
+      publishMode: env.publishMode,
+      contentLang: env.contentLang,
       platforms: {
         instagram: !!env.igUserId,
         threads: !!env.threadsUserId,

@@ -46,6 +46,8 @@ export type DraftContent = {
   sensitivity: "low" | "medium" | "high"; // high = politics/legal/tragedy → extra care
   /** Present on drafts made in the design studio: two-colour palette + canvas format. */
   design?: { palette: { bg: string; fg: string }; format: "post" | "square" | "story" } | null;
+  /** True when the admin wrote the text in the Studio (no sources, no fact-check). */
+  manual?: boolean;
 };
 
 export type FactCheck = {

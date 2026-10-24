@@ -116,3 +116,19 @@ describe("two-colour renderer", () => {
     }
   });
 });
+
+describe("manual posting + Gen Z", () => {
+  it("builds paste-ready captions with hashtags appended once", async () => {
+    const { captionKit } = await import("../src/lib/captions");
+    const kit = captionKit({ hook: "H", instagramCaption: "Big news #Moto3", tiktokCaption: "Pole!", threadsPost: "Thread", threadsFollowUps: ["More"], hashtags: ["#Moto3", "VedaEga"], video: { title: "T", description: "D", scenes: [] } } as never);
+    const ig = kit.find((k) => k.id === "ig")!.text;
+    expect(ig).toContain("#VedaEga");
+    expect(ig.match(/#Moto3/g)!.length).toBe(1);
+    expect(kit.find((k) => k.id === "threads")!.text).toContain("More");
+  });
+  it("scores Gen Z topics above general news", async () => {
+    const { genzScore } = await import("../src/config/genz");
+    expect(genzScore("Konser idol K-pop di Jakarta bikin netizen heboh")).toBeGreaterThan(1);
+    expect(genzScore("Rapat koordinasi anggaran daerah")).toBe(0);
+  });
+});

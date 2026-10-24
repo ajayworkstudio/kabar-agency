@@ -19,7 +19,7 @@ function Frame({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [path]);
 
-  const pendingDrafts = ws?.drafts.filter((d) => d.status === "pending").length ?? 0;
+  const pendingDrafts = ws?.drafts.filter((d) => d.status === "pending" || d.status === "ready").length ?? 0;
   const reviewTasks = ws?.tasks.filter((t) => t.status === "in_review" && t.kind !== "draft").length ?? 0;
   const inboxCount = pendingDrafts + reviewTasks;
   const activeTasks = ws?.tasks.filter((t) => ["todo", "in_progress", "in_review"].includes(t.status)).length ?? 0;

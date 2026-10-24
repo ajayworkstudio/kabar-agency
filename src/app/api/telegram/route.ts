@@ -38,8 +38,9 @@ export async function POST(req: Request) {
       if (cq.message) await markMessage(cq.message.message_id, "❌ Ditolak");
     } else if (action === "now" || action === "slot") {
       const out = await approveDraft(draftId, action);
-      const label = action === "now" ? "🚀 Diposting sekarang" : `🕒 ${out.scheduledFor ? formatWIB(out.scheduledFor) : out.status}`;
-      await answerCallback(cq.id, out.status === "rendering" ? "Disetujui — video sedang dirender" : "Disetujui");
+      const label =
+        out.status === "ready" ? "✅ Siap diposting — unduh di dashboard" : action === "now" ? "🚀 Diposting sekarang" : `🕒 ${out.scheduledFor ? formatWIB(out.scheduledFor) : out.status}`;
+      await answerCallback(cq.id, out.status === "ready" ? "Disetujui — buka dashboard untuk unduh & salin caption" : out.status === "rendering" ? "Disetujui — video sedang dirender" : "Disetujui");
       if (cq.message) await markMessage(cq.message.message_id, label);
       await db().from("drafts").update({ telegram_message_id: cq.message?.message_id ?? null }).eq("id", draftId);
     }

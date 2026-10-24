@@ -1,12 +1,14 @@
 "use client";
 import { useMemo, useState } from "react";
 import type { DraftContent } from "@/lib/types";
+import PostKit from "./PostKit";
 import { ago, Avatar, CatTag, I, TARGETS, wib } from "./ui";
 import { useWorkspace, type Draft } from "./workspace";
 
 /** Full review of a draft: slides, fact-check, claims, editable copy, platform choice, approve/reject. */
 export default function DraftDetail({ d }: { d: Draft }) {
-  const { call, agent } = useWorkspace();
+  const { call, agent, ws } = useWorkspace();
+  const manualMode = ws?.config.publishMode !== "api";
   const c = d.content;
   const fc = d.fact_check;
   const a = agent(d.agent_id);
@@ -31,21 +33,20 @@ export default function DraftDetail({ d }: { d: Draft }) {
   async function approve(when: "now" | "slot") {
     if (dirty && !(await save())) return;
     if (fc?.verdict === "fail" && !confirm("Pemeriksa fakta menandai masalah serius. Tetap terbitkan?")) return;
-    await run({ action: "approve", when, targets }, when === "now" ? "Disetujui — diposting sekarang" : "Disetujui — dijadwalkan ke slot berikutnya");
+    await run({ action: "approve", when, targets }, manualMode ? "Disetujui — siap diunduh & diposting" : when === "now" ? "Disetujui — diposting sekarang" : "Disetujui — dijadwalkan ke slot berikutnya");
   }
 
   return (
     <div className="detail">
       <div className="wrap-row">
         <CatTag c={c.category} />
-        {c.design ? (
+        {!c.manual && <span className="tag">{d.stories?.outlet_count ?? "?"} outlet</span>}
+        {c.design && (
           <span className="tag"><span className="dot" style={{ background: c.design.palette.bg, outline: "1px solid var(--line-2)" }} /><span className="dot" style={{ background: c.design.palette.fg, outline: "1px solid var(--line-2)" }} /> Desain 2 warna · {c.design.format}</span>
-        ) : (
-          <span className="tag">{d.stories?.outlet_count ?? "?"} outlet</span>
         )}
         {fc && <span className={`tag ${fc.verdict === "pass" ? "ok" : fc.verdict === "warn" ? "warn" : "bad"}`}>{fc.verdict === "pass" ? "Lolos cek fakta" : fc.verdict === "warn" ? "Ada catatan fakta" : "Cek fakta gagal"}</span>}
         {c.sensitivity === "high" && <span className="tag bad">Sensitif</span>}
-        {d.status !== "pending" && <span className="tag">{d.status === "scheduled" && d.scheduled_for ? `Terjadwal ${wib(d.scheduled_for)}` : d.status}</span>}
+        {d.status !== "pending" && d.status !== "ready" && <span className="tag">{d.status === "scheduled" && d.scheduled_for ? `Terjadwal ${wib(d.scheduled_for)}` : d.status}</span>}
       </div>
       <h2>{c.hook}</h2>
       <p className="lead" style={{ margin: 0 }}>{c.summary}</p>
@@ -63,7 +64,8 @@ export default function DraftDetail({ d }: { d: Draft }) {
         </span>
       </div>
 
-      {d.card_urls.length > 0 && <div className="slides">{d.card_urls.map((u, i) => <img key={u} src={u} alt={`Slide ${i + 1}`} loading="lazy" />)}</div>}
+      {d.status === "ready" && <PostKit d={d} />}
+      {d.status !== "ready" && d.card_urls.length > 0 && <div className="slides">{d.card_urls.map((u, i) => <img key={u} src={u} alt={`Slide ${i + 1}`} loading="lazy" />)}</div>}
 
       {d.error && <div className="note bad" style={{ marginTop: 10 }}>{d.error}</div>}
       {fc && fc.issues.length > 0 && (
@@ -73,8 +75,8 @@ export default function DraftDetail({ d }: { d: Draft }) {
         </div>
       )}
 
-      {c.design && <div className="note" style={{ marginTop: 10 }}>Konten manual dari Studio desain — tidak melewati cek fakta otomatis. Pastikan isinya sudah benar sebelum disetujui.</div>}
-      {!c.design && <details className="fold" style={{ marginTop: 14 }}>
+      {c.manual && <div className="note" style={{ marginTop: 10 }}>Konten manual dari Studio desain — tidak melewati cek fakta otomatis. Pastikan isinya sudah benar sebelum disetujui.</div>}
+      {!c.manual && <details className="fold" style={{ marginTop: 14 }}>
         <summary>Fakta yang dipakai · {c.keyFacts.length}</summary>
         <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>{c.keyFacts.map((f, i) => <li key={i} style={{ margin: "4px 0" }}>{f.claim} <span className="muted">— {f.sources.join(", ")}</span></li>)}</ul>
       </details>}
@@ -105,8 +107,14 @@ export default function DraftDetail({ d }: { d: Draft }) {
 
       {canAct && (
         <div className="action-bar">
-          <button className="btn primary" disabled={busy || !targets.length} onClick={() => approve("now")}><I.check size={14} /> Setujui & posting sekarang</button>
-          <button className="btn" disabled={busy || !targets.length} onClick={() => approve("slot")}>Jadwalkan slot berikutnya</button>
+          {manualMode ? (
+            <button className="btn primary" disabled={busy || !targets.length} onClick={() => approve("now")}><I.check size={14} /> Setujui — siap diunduh & diposting</button>
+          ) : (
+            <>
+              <button className="btn primary" disabled={busy || !targets.length} onClick={() => approve("now")}><I.check size={14} /> Setujui & posting sekarang</button>
+              <button className="btn" disabled={busy || !targets.length} onClick={() => approve("slot")}>Jadwalkan slot berikutnya</button>
+            </>
+          )}
           <div className="grow" />
           {d.status === "failed"
             ? <button className="btn" disabled={busy} onClick={() => run({ action: "retry" }, "Dicoba ulang")}>Ulangi yang gagal</button>

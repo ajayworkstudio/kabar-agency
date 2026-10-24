@@ -43,6 +43,12 @@ describe("admin pages render with demo data", () => {
     expect(await render("../src/app/app/inbox/page", { path: "/app/inbox", query: { i: "d:demo-d2" } })).toContain("Catatan pemeriksa fakta");
     expect(await render("../src/app/app/inbox/page", { path: "/app/inbox", query: { i: `t:${ws.tasks.find((t) => t.kind === "research" && t.status === "in_review")!.id}` } })).toContain("Angle konten");
   });
+  it("ready-to-post kit (manual mode)", async () => {
+    const html = await render("../src/app/app/inbox/page", { path: "/app/inbox", query: { i: "d:demo-d4" } });
+    expect(html).toContain("Disetujui — siap diposting");
+    expect(html).toContain("Tandai sudah diposting");
+    expect(html).toContain("#VedaEga");
+  });
   it("tasks list, detail and new-task modal", async () => {
     expect(await render("../src/app/app/tasks/page", { path: "/app/tasks" })).toContain("AGN-");
     expect(await render("../src/app/app/tasks/page", { path: "/app/tasks", query: { t: ws.tasks[0].id } })).toContain("Buka draft di Inbox");

@@ -23,6 +23,10 @@ function Inbox() {
   if (!ws) return <><Topbar title="Inbox" /><div className="empty">Memuat…</div></>;
 
   const items: Item[] = [
+    ...ws.drafts.filter((d) => d.status === "ready").map((d) => ({
+      key: `d:${d.id}`, kind: "draft" as const, title: d.hook, at: d.created_at, agentId: d.agent_id, color: "var(--ok)", unread: false,
+      sub: `Siap diposting · unduh ${d.card_urls.length} slide & salin caption`,
+    })),
     ...ws.drafts.filter((d) => d.status === "pending" || d.status === "failed").map((d) => ({
       key: `d:${d.id}`, kind: "draft" as const, title: d.hook, at: d.created_at, agentId: d.agent_id, color: d.content.design ? d.content.design.palette.bg : catColor(d.content.category), unread: d.status === "pending",
       sub: d.status === "failed" ? `Gagal terbit · ${d.error ?? ""}` : d.content.design ? `Desain dari Studio · ${d.card_urls.length} slide · siap disetujui` : `Draft siap disetujui · ${d.stories?.outlet_count ?? "?"} outlet · ${d.fact_check?.verdict === "pass" ? "lolos cek fakta" : d.fact_check?.verdict === "warn" ? "ada catatan" : "perlu dicek"}`,
@@ -39,7 +43,7 @@ function Inbox() {
 
   return (
     <>
-      <Topbar title="Inbox"><span className="muted">{items.length} perlu tindakan</span></Topbar>
+      <Topbar title="Inbox"><span className="muted">{items.filter((i) => i.unread).length} perlu disetujui · {ws.drafts.filter((d) => d.status === "ready").length} siap diposting</span></Topbar>
       <div className={`split ${current ? "has-detail" : ""}`}>
         <div className="pane">
           {items.length === 0 && <div className="empty"><I.check size={22} /><div style={{ marginTop: 8 }}>Semua beres. Draft baru akan muncul di sini begitu karyawan menulisnya.</div></div>}

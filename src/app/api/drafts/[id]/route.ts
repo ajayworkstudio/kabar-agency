@@ -6,7 +6,7 @@ import { db, uploadMedia } from "@/lib/db";
 import { env } from "@/lib/env";
 import { markMessage } from "@/lib/telegram";
 import type { DraftContent } from "@/lib/types";
-import { ALL_TARGETS, approveDraft, rejectDraft } from "@/pipeline/approve";
+import { ALL_TARGETS, approveDraft, markPosted, rejectDraft } from "@/pipeline/approve";
 import { renderCarousel } from "@/pipeline/cards";
 import { formatWIB } from "@/pipeline/schedule";
 
@@ -16,6 +16,7 @@ const Action = z.discriminatedUnion("action", [
   z.object({ action: z.literal("approve"), when: z.union([z.literal("now"), z.literal("slot"), z.string().datetime()]), targets: z.array(z.enum(ALL_TARGETS)).optional() }),
   z.object({ action: z.literal("reject") }),
   z.object({ action: z.literal("retry") }),
+  z.object({ action: z.literal("posted"), permalinks: z.record(z.string(), z.string().url()).optional() }),
   z.object({ action: z.literal("edit"), content: z.record(z.string(), z.unknown()) }),
 ]);
 
@@ -32,8 +33,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (a.action === "approve") {
     const out = await approveDraft(id, a.when === "now" || a.when === "slot" ? a.when : new Date(a.when), a.targets);
-    if (d.telegram_message_id && out.scheduledFor) await markMessage(d.telegram_message_id, a.when === "now" ? "🚀 Diposting sekarang" : `🕒 ${formatWIB(out.scheduledFor)}`);
+    if (d.telegram_message_id) {
+      await markMessage(d.telegram_message_id, out.status === "ready" ? "✅ Disetujui — siap diposting manual" : !out.scheduledFor ? "✅ Disetujui" : a.when === "now" ? "🚀 Diposting sekarang" : `🕒 ${formatWIB(out.scheduledFor)}`);
+    }
     return NextResponse.json(out);
+  }
+  if (a.action === "posted") {
+    await markPosted(id, a.permalinks ?? {});
+    if (d.telegram_message_id) await markMessage(d.telegram_message_id, "✅ Sudah diposting");
+    return NextResponse.json({ status: "published" });
   }
   if (a.action === "reject") {
     await rejectDraft(id);
@@ -49,7 +57,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   // edit: merge fields, re-render cards if slides changed
-  if (!["pending", "failed"].includes(d.status as string)) return NextResponse.json({ error: "only pending drafts can be edited" }, { status: 409 });
+  if (!["pending", "failed", "ready"].includes(d.status as string)) return NextResponse.json({ error: "only pending/ready drafts can be edited" }, { status: 409 });
   const merged = { ...(d.content as DraftContent), ...(a.content as Partial<DraftContent>) } as DraftContent;
   const update: Record<string, unknown> = { content: merged, hook: merged.hook, updated_at: new Date().toISOString() };
   if (a.content.carousel || a.content.sourceCredit || a.content.category) {

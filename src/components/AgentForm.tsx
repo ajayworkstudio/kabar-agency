@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { Agent, AgentSettings } from "@/lib/agents";
+import { PALETTES } from "@/pipeline/twotone";
 import { Avatar, CATEGORY, TARGETS } from "./ui";
 
 export type AgentDraft = Pick<Agent, "name" | "role" | "kind" | "color" | "status" | "platforms" | "categories" | "responsibilities"> & { settings: AgentSettings };
@@ -54,8 +55,35 @@ export default function AgentForm({ value, onChange }: { value: AgentDraft; onCh
 
       {v.kind === "writer" && (
         <>
+          <label className="label">Fokus audiens</label>
+          <div className="seg">
+            <button aria-pressed={(v.settings.focus ?? "general") === "general"} onClick={() => onChange({ ...v, settings: { ...v.settings, focus: "general" } })}>Umum</button>
+            <button aria-pressed={v.settings.focus === "genz"} onClick={() => onChange({ ...v, settings: { ...v.settings, focus: "genz" } })}>Gen Z — viral, kpop, game, tech, kampus</button>
+          </div>
           <label className="label">Kategori berita <span className="faint">(kosong = semua kategori)</span></label>
           <div className="chips">{Object.entries(CATEGORY).map(([k, l]) => <button key={k} className="chip" aria-pressed={v.categories.includes(k)} onClick={() => set("categories", toggle(v.categories, k))}>{l}</button>)}</div>
+        </>
+      )}
+
+      {v.kind === "designer" && (
+        <>
+          <label className="label">Palet default untuk desain otomatis (draft dari penulis berita)</label>
+          <div className="palettes">
+            {PALETTES.map((p) => {
+              const on = v.settings.palette?.bg === p.bg && v.settings.palette?.fg === p.fg;
+              return (
+                <button key={p.name} className="swatch" title={p.name} aria-pressed={on} onClick={() => onChange({ ...v, settings: { ...v.settings, palette: { bg: p.bg, fg: p.fg } } })}>
+                  <span style={{ background: p.bg }} /><span style={{ background: p.fg }} />
+                </button>
+              );
+            })}
+          </div>
+          <label className="label">Format default</label>
+          <div className="seg">
+            {([["post", "Carousel 4:5"], ["square", "Kotak 1:1"], ["story", "Story 9:16"]] as const).map(([f, l]) => (
+              <button key={f} aria-pressed={(v.settings.format ?? "post") === f} onClick={() => onChange({ ...v, settings: { ...v.settings, format: f } })}>{l}</button>
+            ))}
+          </div>
         </>
       )}
 

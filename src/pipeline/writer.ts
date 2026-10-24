@@ -153,11 +153,28 @@ function renderSources(docs: SourceDoc[]) {
     .join("\n\n");
 }
 
-export async function writeDraft(docs: SourceDoc[], hint: { category: string; trending: boolean }): Promise<DraftContent> {
+const GENZ_EN = `
+
+AUDIENCE: GEN Z (roughly 15–28, digitally native, extremely online).
+- Lead with why it matters to them: money, jobs, campus, tech, culture, the internet's reaction.
+- Sound like a smart friend, not a newsreader: short sentences, direct, a little wit. Light slang only where it's natural ("lowkey", "it's giving", "big W") — never forced, never cringe, never in tragedies or politics.
+- Make it skimmable: one punchy idea per slide, numbers and names up front.
+- End with a question they'd actually want to answer (opinion, prediction, "would you…").
+- Hashtags: mix 1–2 broad tags with niche community tags.`;
+
+const GENZ_ID = `
+
+AUDIENS: GEN Z (sekitar 15–28 tahun, melek digital).
+- Buka dengan kenapa ini penting buat mereka: uang, kerja, kampus, teknologi, budaya, reaksi netizen.
+- Gaya teman yang pintar, bukan pembaca berita: kalimat pendek, lugas, sedikit jenaka. Slang ringan hanya bila natural — jangan dipaksakan, jangan di berita duka atau politik.
+- Mudah dipindai: satu ide per slide, angka dan nama di depan.
+- Akhiri dengan pertanyaan yang memang ingin mereka jawab.`;
+
+export async function writeDraft(docs: SourceDoc[], hint: { category: string; trending: boolean; audience?: "general" | "genz" }): Promise<DraftContent> {
   const res = await anthropic().messages.create({
     model: env.anthropicModel,
     max_tokens: 4000,
-    system: systemPrompt(),
+    system: systemPrompt() + (hint.audience === "genz" ? (env.contentLang === "en" ? GENZ_EN : GENZ_ID) : ""),
     tools: [{ name: "submit_draft", description: "Kirim paket konten final.", input_schema: draftToolSchema as unknown as Anthropic.Tool.InputSchema }],
     tool_choice: { type: "tool", name: "submit_draft" },
     messages: [

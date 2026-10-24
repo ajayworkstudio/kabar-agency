@@ -4,6 +4,8 @@ export const env = {
   brandName: process.env.BRAND_NAME ?? "fyinews.official",
   brandHandle: process.env.BRAND_HANDLE ?? "@fyinews.official",
   /** Language of everything that gets published: "en" (default) or "id". The admin dashboard stays Indonesian. */
+  /** "manual" (default): approve → download & copy, you post yourself. "api": publish through platform APIs. */
+  publishMode: (process.env.PUBLISH_MODE === "api" ? "api" : "manual") as "manual" | "api",
   contentLang: (process.env.CONTENT_LANG === "id" ? "id" : "en") as "en" | "id",
   appUrl: (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, ""),
 

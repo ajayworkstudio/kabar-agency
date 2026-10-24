@@ -16,6 +16,9 @@ export const AgentInput = z.object({
       minSourcesPolitics: z.number().int().min(1).max(10),
       maxDraftsPerDay: z.number().int().min(0).max(100),
       reportHour: z.number().int().min(0).max(23),
+      focus: z.enum(["general", "genz"]),
+      palette: z.object({ bg: z.string().regex(/^#[0-9a-fA-F]{6}$/), fg: z.string().regex(/^#[0-9a-fA-F]{6}$/) }),
+      format: z.enum(["post", "square", "story"]),
     })
     .partial()
     .optional(),

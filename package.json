@@ -17,6 +17,7 @@
     "@mozilla/readability": "^0.6.0",
     "@resvg/resvg-js": "^2.6.2",
     "@supabase/supabase-js": "^2.118.0",
+    "fflate": "^0.8.3",
     "linkedom": "^0.18.14",
     "next": "^15.5.28",
     "react": "^19.3.1",

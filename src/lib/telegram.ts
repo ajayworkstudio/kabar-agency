@@ -15,9 +15,11 @@ const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt
 
 export function keyboard(draftId: string) {
   const b = (text: string, action: string) => ({ text, callback_data: `${action}:${draftId}:${actionSig(action, draftId)}` });
+  const approveRow =
+    env.publishMode === "manual" ? [b("✅ Setujui (siap diposting)", "now")] : [b("✅ Post sekarang", "now"), b("🕒 Slot berikutnya", "slot")];
   return {
     inline_keyboard: [
-      [b("✅ Post sekarang", "now"), b("🕒 Slot berikutnya", "slot")],
+      approveRow,
       [b("❌ Tolak", "rej"), { text: "✏️ Buka dashboard", url: `${env.appUrl}/?draft=${draftId}` }],
     ],
   };
