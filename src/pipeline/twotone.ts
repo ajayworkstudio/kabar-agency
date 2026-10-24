@@ -52,11 +52,17 @@ function richText(text: string, size: number, weight: number, ink: string, paper
     "div",
     // each word is its own block, so line spacing comes from rowGap (keeps highlight blocks from touching)
     { flexWrap: "wrap", alignItems: "center", fontSize: size, fontWeight: weight, lineHeight: 1.08, rowGap: Math.round(size * (lineHeight - 1.0)), letterSpacing: size > 60 ? -size * 0.025 : 0, color: ink },
-    ...parts.map((p) =>
-      p.hi
-        ? h("div", { backgroundColor: ink, color: paper, padding: `0 ${Math.round(size * 0.12)}px`, marginRight: Math.round(size * 0.22) }, p.w)
-        : h("div", { marginRight: Math.round(size * 0.22) }, p.w)
-    )
+    // punctuation right after a word ("*Diks*, Gladbach") is glued to it so they wrap together
+    ...parts.reduce<Node[]>((out, p, i) => {
+      if (i > 0 && !p.hi && /^[,.!?;:)]+$/.test(p.w) && parts[i - 1]) return out; // consumed by previous word
+      const next = parts[i + 1];
+      const punct = next && !next.hi && /^[,.!?;:)]+$/.test(next.w) ? next.w : "";
+      const word = p.hi
+        ? h("div", { backgroundColor: ink, color: paper, padding: `0 ${Math.round(size * 0.12)}px` }, p.w)
+        : h("div", {}, p.w);
+      out.push(h("div", { marginRight: Math.round(size * 0.22) }, ...(punct ? [word, h("div", { marginLeft: p.hi ? Math.round(size * 0.04) : 0 }, punct)] : [word])));
+      return out;
+    }, [])
   );
 }
 
