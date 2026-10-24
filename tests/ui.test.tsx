@@ -40,7 +40,8 @@ describe("admin pages render with demo data", () => {
   });
   it("home is the design studio", async () => {
     const html = await render("../src/app/app/page", { path: "/app" });
-    expect(html).toContain("Ambil bahan");
+    expect(html).toContain("Teks mentah");
+    expect(html).toContain("Ringkas cepat (tanpa AI)");
     expect(html).toContain("Salin caption");
   });
   it("inbox list + draft detail + research detail", async () => {

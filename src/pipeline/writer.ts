@@ -251,3 +251,66 @@ export async function brief(instruction: string, material: string, maxTokens = 9
   const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n").trim();
   return text || null;
 }
+
+// ── Design studio: raw pasted article → slide text in the admin's chosen format ──
+
+export type StudioSummary = { title: string; text: string; caption: string; hashtags: string[]; credit: string };
+
+const StudioOut = z.object({
+  title: z.string(),
+  slides: z.array(z.object({ kind: z.enum(["cover", "point", "quote", "closing"]), kicker: z.string().optional(), title: z.string(), body: z.string().optional() })).min(1),
+  caption: z.string(),
+  hashtags: z.array(z.string()).default([]),
+  outlet: z.string().optional(),
+});
+
+export async function summarizeForStudio(
+  raw: string,
+  fmt: { slides: number; quote: boolean; closing: "question" | "follow" | "none"; labels: "numbered" | "none" },
+  lang: "en" | "id",
+  extra = ""
+): Promise<StudioSummary> {
+  if (!env.anthropicKey) throw new Error("ANTHROPIC_API_KEY belum diisi");
+  const L = lang === "en" ? "English" : "Bahasa Indonesia";
+  const rules = [
+    `Write everything in ${L}${lang === "en" ? ", translated faithfully from the source" : ""}, for a digitally native Gen Z audience: punchy, clear, no clickbait, no slang overload.`,
+    `Exactly ${fmt.slides} slides: slide 1 kind "cover" (headline ≤ 70 chars + one-line hook body).`,
+    fmt.quote ? `Include one "quote" slide ONLY if the article contains a direct quote: title = the quote (translated), body = speaker name and role.` : `No quote slide.`,
+    fmt.closing === "question" ? `Last slide kind "closing": a question that invites comments.` : fmt.closing === "follow" ? `Last slide kind "closing": a follow call-to-action for ${env.brandHandle}.` : `No closing slide; fill the rest with "point" slides.`,
+    `"point" slides: title ≤ 70 chars, body ≤ 160 chars, one fact each, in story order.${fmt.labels === "numbered" ? ` kicker = a 1–3 word label (e.g. "The crowd").` : " No kicker."}`,
+    `Mark the single most striking word or number in a title with *asterisks* (max one per slide).`,
+    `Use ONLY facts in the article. Attribute claims (e.g. "per the promoter"). Keep numbers exact. Neutral on politics.`,
+    `caption: 2–4 short lines + a comment prompt, no hashtags inside. hashtags: 4–7 relevant tags with #. outlet: the publication name if identifiable.`,
+    extra ? `Admin's extra instruction: ${extra}` : "",
+  ].filter(Boolean);
+
+  const res = await anthropic().messages.create({
+    model: env.anthropicModel,
+    max_tokens: 1800,
+    system: `You are Dita, the designer-editor of the news account ${env.brandName}. You turn a raw news article into an Instagram carousel.\n- ${rules.join("\n- ")}`,
+    messages: [{ role: "user", content: `<article>\n${raw.slice(0, 12000)}\n</article>` }],
+    tools: [{
+      name: "submit_slides",
+      description: "Submit the carousel.",
+      input_schema: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          slides: { type: "array", items: { type: "object", properties: { kind: { type: "string", enum: ["cover", "point", "quote", "closing"] }, kicker: { type: "string" }, title: { type: "string" }, body: { type: "string" } }, required: ["kind", "title"] } },
+          caption: { type: "string" },
+          hashtags: { type: "array", items: { type: "string" } },
+          outlet: { type: "string" },
+        },
+        required: ["title", "slides", "caption", "hashtags"],
+      },
+    }],
+    tool_choice: { type: "tool", name: "submit_slides" },
+  });
+  const block = res.content.find((b) => b.type === "tool_use");
+  const out = StudioOut.parse(block && "input" in block ? block.input : null);
+  const text = out.slides
+    .map((s) => `${s.kicker && s.kind !== "cover" ? `#${s.kicker}\n` : ""}${s.kind === "quote" ? "> " : ""}${s.title.trim()}${s.body ? `\n${s.body.trim()}` : ""}`)
+    .join("\n\n");
+  const credit = out.outlet ? `${lang === "en" ? "Source" : "Sumber"}: ${out.outlet}` : "";
+  return { title: out.title, text, caption: out.caption, hashtags: out.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)), credit };
+}

@@ -164,3 +164,43 @@ describe("article link to slides", () => {
     expect(out.credit).toBe("Source: CNN Indonesia");
   });
 });
+
+describe("raw text summariser", () => {
+  const raw = `Promotor Konser Kanye West Jakarta: 20 Ribu Penonton dari Luar Negeri
+
+Jakarta, CNN Indonesia -- Promotor konser Raw Vision Collective menyebut 20.500 penonton dari luar negeri sudah membeli tiket konser di GBK pada 24 Oktober.
+
+"Hingga hari ini, dengan bangga kita sampaikan ada 20.500 teman-teman dari luar negeri yang sudah membeli tiket," kata Karen Tjahja di Jakarta, Kamis (22/10).
+
+ADVERTISEMENT
+Baca juga: Daftar Harga Tiket Konser Kanye West Jakarta
+
+Selain itu, promotor memperkirakan lebih dari 30.000 penonton datang dari berbagai kota di Indonesia.
+Kanye dijadwalkan membawakan sekitar 35 lagu, termasuk Gold Digger dan Can't Tell Me Nothing.
+Panggung konser mengusung konsep 360 derajat dengan ornamen globe berukuran besar.
+
+(fby/end)`;
+
+  it("follows the chosen format", async () => {
+    const { summarizeRaw } = await import("../src/lib/summarize");
+    const { slidesFromText } = await import("../src/lib/slides");
+    const out = summarizeRaw(raw, { slides: 5, quote: true, closing: "question", labels: "numbered" }, "en")!;
+    const slides = slidesFromText(out.text);
+    expect(slides).toHaveLength(5);
+    expect(slides[0].kind).toBe("cover");
+    expect(slides[0].title).toContain("*20 Ribu*");
+    expect(slides.find((s) => s.kind === "quote")?.body).toBe("Karen Tjahja");
+    expect(slides.at(-1)!.kind).toBe("closing");
+    expect(out.credit).toBe("Source: CNN Indonesia");
+    expect(out.text).not.toMatch(/ADVERTISEMENT|Baca juga|fby/);
+    expect(out.text).toContain("*30.000* penonton"); // highlight keeps its space; "Selain itu," connector dropped
+  });
+
+  it("no quote, no closing → all points", async () => {
+    const { summarizeRaw } = await import("../src/lib/summarize");
+    const { slidesFromText } = await import("../src/lib/slides");
+    const slides = slidesFromText(summarizeRaw(raw, { slides: 4, quote: false, closing: "none", labels: "none" }, "id")!.text);
+    expect(slides).toHaveLength(4);
+    expect(slides.every((s) => !s.kicker)).toBe(true);
+  });
+});

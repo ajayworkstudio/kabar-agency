@@ -6,6 +6,9 @@ import { Topbar } from "@/components/Shell";
 import { Avatar, CATEGORY, I, TARGETS } from "@/components/ui";
 import { useWorkspace } from "@/components/workspace";
 import { articleToText, slidesFromText, storyToText, type BriefArticle } from "@/lib/slides";
+import { DEFAULT_FORMAT, summarizeRaw, type SummaryFormat } from "@/lib/summarize";
+
+type StudioAI = { title: string; text: string; caption: string; hashtags: string[]; credit: string };
 import type { CardSlide } from "@/lib/types";
 import { PALETTES, type DesignFormat } from "@/pipeline/twotone";
 
@@ -54,12 +57,16 @@ function Studio() {
   const [tags, setTags] = useState("#Bundesliga #KevinDiks #Gladbach #Indonesia");
   const [credit, setCredit] = useState("Source: detikSport");
   const storyId = useSearchParams().get("story");
-  const [fromStory, setFromStory] = useState<{ headline: string; from: string } | null>(null);
+  const [fromStory, setFromStory] = useState<{ headline: string; from: string; ai?: boolean } | null>(null);
+  const [src, setSrc] = useState<"raw" | "link" | "hot">("raw");
+  const [rawNews, setRawNews] = useState("");
+  const [fmt, setFmt] = useState<SummaryFormat>(DEFAULT_FORMAT);
+  const [extra, setExtra] = useState("");
   const [link, setLink] = useState("");
   const [fetching, setFetching] = useState(false);
   const lang = ws?.config.contentLang === "id" ? "id" : "en";
 
-  const fill = (built: { text: string; credit: string; caption: string }, headline: string, from: string, cat?: string) => {
+  const fill = (built: { text: string; credit: string; caption: string }, headline: string, from: string, cat?: string, ai = false) => {
     setRaw(built.text);
     setSlides(slidesFromText(built.text));
     setTitle(headline.slice(0, 120));
@@ -67,8 +74,27 @@ function Studio() {
     setCredit(built.credit);
     setCaption(built.caption);
     setMode("text");
-    setFromStory({ headline, from });
+    setFromStory({ headline, from, ai });
   };
+
+  // Raw pasted text → Dita summarises in the chosen format
+  function summarizeLocal(note?: string) {
+    const out = summarizeRaw(rawNews, fmt, lang);
+    if (!out) return say("Teks tidak bisa diringkas — pastikan berisi kalimat lengkap");
+    fill(out, out.title, note ?? "ringkasan cepat");
+  }
+  async function summarizeAI() {
+    setFetching(true);
+    const res = await fetch("/api/design/summarize", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ raw: rawNews, format: fmt, lang, extra }) }).catch(() => null);
+    setFetching(false);
+    const j = (await res?.json().catch(() => null)) as (StudioAI & { error?: string }) | null;
+    if (!res?.ok || !j || j.error) {
+      say(`${j?.error ?? "AI gagal"} — pakai ringkasan cepat`);
+      return summarizeLocal("ringkasan cepat — AI tidak tersedia");
+    }
+    fill(j, j.title, "diringkas Dita via AI", undefined, true);
+    if (j.hashtags?.length) setTags(j.hashtags.join(" "));
+  }
 
   // Pick a hot story (or arrive via "Kirim ke Dita"): pre-fill from the story's articles, no AI needed
   async function loadStory(id: string) {
@@ -132,25 +158,63 @@ function Studio() {
           )}
 
           <div className="card card-b source-box">
-            <div className="label" style={{ marginTop: 0 }}>Ambil bahan</div>
-            <select className="select" value="" disabled={fetching} onChange={(e) => loadStory(e.target.value)} aria-label="Pilih berita terpanas">
-              <option value="">🔥 Pilih dari berita terpanas…</option>
-              {(ws?.stories ?? []).slice(0, 20).map((st) => <option key={st.id} value={st.id}>{st.headline.slice(0, 90)}</option>)}
-            </select>
-            <div className="row" style={{ marginTop: 6 }}>
-              <input className="input" placeholder="…atau tempel link berita" value={link} onChange={(e) => setLink(e.target.value)} onKeyDown={(e) => e.key === "Enter" && loadLink()} aria-label="Link berita" />
-              <button className="btn sm" disabled={fetching || !link.trim()} onClick={loadLink}>{fetching ? "Membaca…" : "Ambil"}</button>
+            <div className="seg" style={{ marginBottom: 8 }}>
+              <button aria-pressed={src === "raw"} onClick={() => setSrc("raw")}>Teks mentah</button>
+              <button aria-pressed={src === "link"} onClick={() => setSrc("link")}>Link</button>
+              <button aria-pressed={src === "hot"} onClick={() => setSrc("hot")}>Berita terpanas</button>
             </div>
+
+            {src === "raw" && (
+              <>
+                <textarea className="textarea" rows={6} placeholder="Tempel teks berita apa adanya — judul di baris pertama, lalu isi artikel. Dita yang meringkas." value={rawNews} onChange={(e) => setRawNews(e.target.value)} aria-label="Teks berita mentah" />
+                <div className="grid g-2" style={{ gap: 8, marginTop: 8 }}>
+                  <div><label className="label" style={{ marginTop: 0 }}>Jumlah slide</label>
+                    <div className="seg">{[4, 5, 6, 8].map((n) => <button key={n} aria-pressed={fmt.slides === n} onClick={() => setFmt({ ...fmt, slides: n })}>{n}</button>)}</div>
+                  </div>
+                  <div><label className="label" style={{ marginTop: 0 }}>Penutup</label>
+                    <select className="select" value={fmt.closing} onChange={(e) => setFmt({ ...fmt, closing: e.target.value as SummaryFormat["closing"] })}>
+                      <option value="question">Pertanyaan ke audiens</option>
+                      <option value="follow">Ajakan follow</option>
+                      <option value="none">Tanpa penutup</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="row" style={{ marginTop: 8, fontSize: 12.5, gap: 14 }}>
+                  <label className="row" style={{ gap: 6 }}><input type="checkbox" checked={fmt.quote} onChange={(e) => setFmt({ ...fmt, quote: e.target.checked })} /> Slide kutipan</label>
+                  <label className="row" style={{ gap: 6 }}><input type="checkbox" checked={fmt.labels === "numbered"} onChange={(e) => setFmt({ ...fmt, labels: e.target.checked ? "numbered" : "none" })} /> Label kecil</label>
+                </div>
+                <input className="input" style={{ marginTop: 8 }} placeholder="Instruksi tambahan untuk AI (opsional), mis. fokus ke angka penonton" value={extra} onChange={(e) => setExtra(e.target.value)} aria-label="Instruksi tambahan" />
+                <div className="row" style={{ marginTop: 8, flexWrap: "wrap" }}>
+                  <button className="btn sm primary" disabled={fetching || rawNews.trim().length < 80} onClick={summarizeAI}>{fetching ? "Dita meringkas…" : `Ringkas + ${lang === "en" ? "terjemahkan " : ""}via AI`}</button>
+                  <button className="btn sm" disabled={rawNews.trim().length < 80} onClick={() => summarizeLocal()}>Ringkas cepat (tanpa AI)</button>
+                </div>
+              </>
+            )}
+
+            {src === "link" && (
+              <div className="row">
+                <input className="input" placeholder="Tempel link berita" value={link} onChange={(e) => setLink(e.target.value)} onKeyDown={(e) => e.key === "Enter" && loadLink()} aria-label="Link berita" />
+                <button className="btn sm" disabled={fetching || !link.trim()} onClick={loadLink}>{fetching ? "Membaca…" : "Ambil"}</button>
+              </div>
+            )}
+
+            {src === "hot" && (
+              <select className="select" value="" disabled={fetching} onChange={(e) => loadStory(e.target.value)} aria-label="Pilih berita terpanas">
+                <option value="">🔥 Pilih dari berita terpanas…</option>
+                {(ws?.stories ?? []).slice(0, 20).map((st) => <option key={st.id} value={st.id}>{st.headline.slice(0, 90)}</option>)}
+              </select>
+            )}
+
             <div className="row" style={{ marginTop: 6, fontSize: 12 }}>
-              <button className="btn ghost sm" onClick={() => { applyText(""); setFromStory(null); setCaption(""); setTitle("Desain baru"); }}>Kosongkan</button>
+              <button className="btn ghost sm" onClick={() => { applyText(""); setFromStory(null); setCaption(""); setTitle("Desain baru"); }}>Kosongkan slide</button>
               <button className="btn ghost sm" onClick={() => { applyText(SAMPLE); setFromStory(null); }}>Contoh format</button>
             </div>
           </div>
 
           {fromStory && (
             <div className="note" style={{ marginBottom: 12 }}>
-              Diisi dari <b>“{fromStory.headline}”</b> ({fromStory.from}). Teks masih mengikuti bahasa sumber —
-              {ws?.config.contentLang === "id" ? " rapikan seperlunya," : " terjemahkan ke bahasa Inggris & rapikan,"} lalu kirim ke Inbox.
+              Diisi dari <b>“{fromStory.headline}”</b> ({fromStory.from}).
+              {fromStory.ai ? " Sudah diringkas Dita — cek angka & nama, lalu unduh." : ws?.config.contentLang === "id" ? " Rapikan seperlunya, lalu unduh." : " Teks masih bahasa sumber — terjemahkan ke Inggris & rapikan, lalu unduh."}
             </div>
           )}
           <div className="seg" style={{ marginBottom: 6 }}>
